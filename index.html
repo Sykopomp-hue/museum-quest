@@ -1,0 +1,1340 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:dark}html,body{margin:0;height:100%;background:#05060f}</style>
+<title>Tracing the Pop Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: a single 16x12-tile pixel stage, scaled by --u; every window (dialog, menu, picture) is DOM drawn in Dragon Quest blue-and-white, sized in --u units. */
+:root{
+  --bg:#05060f; --ink:#f4f8ff; --dim:#9fb0e8; --gold:#ffd23f; --pink:#ff7aa8; --cyan:#4fd6e8; --red:#e14c5a;
+  --win-a:#0b1f9a; --win-b:#050a52; --win-edge:#f4f8ff; --win-shadow:#000a40;
+  --px:'DotGothic16','Courier New',monospace; --title:'Press Start 2P','Courier New',monospace;
+  --u:3px; color-scheme:dark;
+}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--px);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;}
+#app{height:100%;display:flex;flex-direction:column;align-items:center;padding-inline:16px;box-sizing:border-box;}
+#wrap{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;}
+#stage{position:relative;width:768px;height:576px;background:#000;overflow:hidden;box-shadow:0 0 0 calc(var(--u)*1) #1a2160,0 0 0 calc(var(--u)*2) #000;}
+#view{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;}
+.win{position:absolute;box-sizing:border-box;color:var(--ink);font-family:var(--px);font-size:calc(var(--u)*8);line-height:1.4;
+  background:linear-gradient(180deg,var(--win-a),var(--win-b));border:calc(var(--u)*1.1) solid var(--win-edge);border-radius:calc(var(--u)*2.2);
+  box-shadow:0 0 0 calc(var(--u)*.6) #000,inset 0 0 0 calc(var(--u)*.6) var(--win-shadow);padding:calc(var(--u)*3) calc(var(--u)*5);}
+.win[hidden]{display:none!important;}
+#hudLoc{left:calc(var(--u)*4);top:calc(var(--u)*4);padding:calc(var(--u)*1.5) calc(var(--u)*4);font-size:calc(var(--u)*7);transition:opacity .5s;}
+#hudStats{right:calc(var(--u)*4);top:calc(var(--u)*4);padding:calc(var(--u)*1.5) calc(var(--u)*4);display:flex;gap:calc(var(--u)*4);align-items:center;font-size:calc(var(--u)*7);}
+#hudStamps{display:flex;gap:calc(var(--u)*1.2);}
+.stampDot{width:calc(var(--u)*5);height:calc(var(--u)*5);border:calc(var(--u)*.7) solid #6a78c8;background:#0a1260;border-radius:50%;box-sizing:border-box;}
+.stampDot.on{background:var(--gold);border-color:#fff;box-shadow:0 0 calc(var(--u)*2) var(--gold);}
+#picWin{left:50%;transform:translateX(-50%);top:calc(var(--u)*4);padding:calc(var(--u)*2.5);}
+#pic{display:block;width:calc(var(--u)*104);height:calc(var(--u)*62.4);image-rendering:pixelated;image-rendering:crisp-edges;}
+#dialog{left:calc(var(--u)*8);right:calc(var(--u)*8);bottom:calc(var(--u)*5);min-height:calc(var(--u)*48);padding:calc(var(--u)*6) calc(var(--u)*8) calc(var(--u)*5);}
+#dName{position:absolute;left:calc(var(--u)*7);top:calc(var(--u)*-5.5);background:linear-gradient(180deg,var(--win-a),var(--win-b));border:calc(var(--u)*1) solid var(--win-edge);border-radius:calc(var(--u)*1.6);padding:0 calc(var(--u)*4);color:var(--gold);font-size:calc(var(--u)*7.5);line-height:1.5;box-shadow:0 0 0 calc(var(--u)*.5) #000;}
+#dName:empty{display:none;}
+#dText{white-space:pre-wrap;min-height:calc(var(--u)*34);}
+#dText .dim{color:var(--dim);}
+#dMore{position:absolute;right:calc(var(--u)*8);bottom:calc(var(--u)*3);color:var(--gold);font-size:calc(var(--u)*7);animation:blink .8s steps(2) infinite;}
+@keyframes blink{50%{opacity:0;}}
+#list{padding:calc(var(--u)*4) calc(var(--u)*6) calc(var(--u)*4) calc(var(--u)*4);display:flex;flex-direction:column;gap:calc(var(--u)*.5);max-height:calc(var(--u)*150);overflow:hidden;}
+#list.choice{right:calc(var(--u)*8);bottom:calc(var(--u)*58);}
+#list.menu{left:calc(var(--u)*4);top:calc(var(--u)*20);}
+#list.center{left:50%;top:50%;transform:translate(-50%,-50%);min-width:calc(var(--u)*120);}
+#list .head{color:var(--gold);padding-left:calc(var(--u)*7);margin-bottom:calc(var(--u)*1.5);}
+.opt{display:block;background:none;border:0;color:var(--ink);font:inherit;text-align:left;padding:calc(var(--u)*.8) calc(var(--u)*3) calc(var(--u)*.8) calc(var(--u)*7);cursor:pointer;position:relative;white-space:nowrap;}
+.opt.sel{color:var(--gold);}
+.opt.sel::before{content:"\25B6";position:absolute;left:calc(var(--u)*.5);color:var(--ink);font-size:.8em;top:.15em;}
+.opt.off{color:#6a78b8;}
+#toast{left:50%;top:34%;transform:translate(-50%,0);text-align:center;color:var(--gold);padding:calc(var(--u)*4) calc(var(--u)*9);animation:pop .35s cubic-bezier(.3,1.6,.5,1);white-space:nowrap;}
+@keyframes pop{from{transform:translate(-50%,10px) scale(.6);opacity:0;}to{transform:translate(-50%,0) scale(1);opacity:1;}}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s linear;}
+#title{position:absolute;inset:0;background:#02030c;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:calc(var(--u)*3);}
+#title[hidden]{display:none;}
+#stars{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;}
+#title>*:not(canvas){position:relative;}
+#title h1{margin:0;font-family:var(--title);font-weight:400;font-size:calc(var(--u)*17);line-height:1.25;color:var(--gold);letter-spacing:calc(var(--u)*.5);text-shadow:calc(var(--u)*1) calc(var(--u)*1) 0 #b8462f,calc(var(--u)*2) calc(var(--u)*2) 0 #3a1030;}
+#title .sub{font-family:var(--title);font-size:calc(var(--u)*7);color:var(--cyan);letter-spacing:calc(var(--u)*1);}
+#title .tag{font-size:calc(var(--u)*7.5);color:var(--dim);max-width:calc(var(--u)*190);}
+#title .menu{margin-top:calc(var(--u)*6);display:flex;flex-direction:column;align-items:flex-start;}
+#title .foot{position:absolute;bottom:calc(var(--u)*4);font-size:calc(var(--u)*6);color:#6a78b8;}
+#hintBar{flex:none;font-size:13px;color:#7f8cc8;padding:6px 0 10px;text-align:center;}
+#pad{display:none;flex:none;width:100%;max-width:520px;justify-content:space-between;align-items:center;padding:8px 8px 14px;box-sizing:border-box;}
+#dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px;}
+.pb{background:#101a70;color:#f4f8ff;border:2px solid #f4f8ff;border-radius:10px;font:inherit;font-size:18px;touch-action:none;display:flex;align-items:center;justify-content:center;}
+.pb:active{background:#2a3ab8;}
+#ab{display:flex;gap:16px;align-items:center;}
+#ab .pb{width:64px;height:64px;border-radius:50%;font-size:20px;}
+#ab .pb.a{margin-top:-24px;background:#8a1f3a;}
+@media (pointer:coarse),(max-width:760px){#pad{display:flex;}#hintBar{display:none;}}
+@media (prefers-reduced-motion:reduce){#dMore{animation:none;}#toast{animation:none;}}
+#picWin{animation:dropin .4s cubic-bezier(.2,1.4,.4,1);}
+@keyframes dropin{from{transform:translate(-50%,-40%) scale(.5);opacity:0;}to{transform:translate(-50%,0) scale(1);opacity:1;}}
+#hudLoc{transition:opacity .6s;}
+#titleMenu .opt{font-size:calc(var(--u)*9);padding:calc(var(--u)*1.2) calc(var(--u)*3) calc(var(--u)*1.2) calc(var(--u)*9);}
+#titleMenu .opt.sel::before{left:calc(var(--u)*1);}
+</style>
+
+<div id="app">
+  <div id="wrap">
+    <div id="stage">
+      <canvas id="view" width="256" height="192"></canvas>
+      <div id="hudLoc" class="win" hidden></div>
+      <div id="hudStats" class="win" hidden><span id="hudStamps"></span><span id="hudSeen"></span></div>
+      <div id="picWin" class="win" hidden><canvas id="pic" width="80" height="48"></canvas></div>
+      <div id="dialog" class="win" hidden><div id="dName"></div><div id="dText"></div><div id="dMore">&#9660;</div></div>
+      <div id="list" class="win" hidden></div>
+      <div id="toast" class="win" hidden></div>
+      <div id="fade"></div>
+      <div id="title">
+        <canvas id="stars" width="128" height="96"></canvas>
+        <div class="sub">A DIGITAL MUSEUM QUEST</div>
+        <h1>TRACING<br>THE POP</h1>
+        <div class="tag">A Review of a Decade in PH Popular Culture, 2000&ndash;2010</div>
+        <div class="menu" id="titleMenu"></div>
+        <div class="foot">Group 3 &middot; Kaye &middot; Yza &middot; Kirsten &middot; William &middot; Mendoza</div>
+      </div>
+    </div>
+  </div>
+  <div id="hintBar">Arrow keys / WASD: walk &nbsp;&middot;&nbsp; Enter / Space: talk &amp; read &nbsp;&middot;&nbsp; Esc: menu</div>
+  <div id="pad">
+    <div id="dpad">
+      <span></span><button class="pb" data-k="up">&#9650;</button><span></span>
+      <button class="pb" data-k="left">&#9664;</button><span></span><button class="pb" data-k="right">&#9654;</button>
+      <span></span><button class="pb" data-k="down">&#9660;</button><span></span>
+    </div>
+    <div id="ab"><button class="pb" data-k="b">B</button><button class="pb a" data-k="a">A</button></div>
+  </div>
+</div>
+<script>
+/* ===================== CONTENT (from the group's Milestone 1 paper) ===================== */
+const GUIDE_NOTES = [
+  { label:"Purpose", pages:[
+    "The purpose of our digital museum is to examine and document the development of Philippine popular culture from 2000 to 2010.",
+    "It aims to show how technological advancement, mass media, globalization, and changing social practices influenced the way Filipinos communicated, entertained themselves, expressed their identities, and interacted with others." ]},
+  { label:"Audience", pages:[
+    "Our main audience is Filipino students and young people who were not alive during 2000-2010.",
+    "Older Filipinos who lived through the period are welcome too, and may recognize themselves in the exhibits. Scholars, researchers, and teachers interested in Philippine media and popular culture are also invited." ]},
+  { label:"Context", pages:[
+    "This museum was built around the rapid cultural and technological change the Philippines went through in the 2000s.",
+    "Cellphones and text messaging exploded, the internet and social networks arrived, and television, music, cinema, and fashion kept their grip on everyday life." ]}
+];
+
+const WINGS = [
+ { id:"affect", name:"Affect & Feelings", short:"Affect", icon:"heart", focus:true, theme:"affect", music:"affect",
+   timeline:["Movies & radio dramas","Shared teleserye primetime","YouTube, K-drama & TikTok"],
+   essay:"TV and music created shared emotional experiences. Teleseryes like “Pangako Sa'Yo,” “Marimar,” and “Sana Maulit Muli,” and reality shows like “Pinoy Big Brother,” made people feel “kilig,” “awa,” and “gigil” together. Music from bands like Parokya ni Edgar and Eraserheads became the soundtrack of memories. This pattern of media shaping emotion holds across decades: before 2000 it was movies and radio dramas, after 2010 it moved to YouTube vlogs, K-dramas on Netflix, and viral TikTok sounds. The difference is that in the 2000s, people felt these emotions together at the same TV time, while today it's personal and on-demand.",
+   takeaway:"This period was a period of cultural experiences that shaped people's affects, senses, and feelings. Music, TV, arcade gaming, telephone usage, and fashion were all part of everyday life and brought people together, creating joy, excitement, togetherness, nostalgia, and connection.",
+   ex:[
+    { t:"The Soundtrack Everywhere", by:"Kaye", src:"Shoop, 2017", pic:{bg:"dusk",o:["boombox","note"]},
+      body:"Filipinos frequently listened to CDs, cassette tapes, FM radio, and later MP3 players. In homes, cars, shops, and public spaces, OPM, pop music, and international music were frequently heard." },
+    { t:"Kilig, Gigil, and the Bashing Culture", by:"Yza", src:"Tiongson, 2013", pic:{bg:"night",o:["tv","heart"]},
+      body:"This decade sparked intense emotions through reality TV and teleserye. Shows like Pinoy Big Brother and Pangako Sa'Yo created “kilig,” “gigil,” and “bashing” culture. Viewers felt personally connected by voting through SMS and discussing episodes in school and online." },
+    { t:"“Meteor Garden” Fever", by:"Kirsten", pic:{bg:"dawn",o:["tv","star"]},
+      body:"“Meteor Garden” fever in the Philippines made many young Filipinos feel excited and emotionally attached to the series and its characters." },
+    { t:"Text Capital of the World", by:"William", pic:{bg:"day",o:["phone","chat"]},
+      body:"Text messaging culture created constant emotional connectivity. The Philippines was dubbed the “Text Capital of the World,” fostering an always-on intimacy among family and friends." },
+    { t:"The Blue Magic Run", by:"Mendoza", pic:{bg:"dusk",o:["gift","heart"]},
+      body:"Filipinos went to Blue Magic as a go-to shop for romantic gifts." } ] },
+
+ { id:"body", name:"Body & Self-Image", short:"Body", icon:"mirror", focus:true, theme:"body", music:"body",
+   timeline:["Movie stars & VHS","TV, magazines & pageants","Instagram & K-pop idols"],
+   essay:"Pop culture set trends for beauty and style. In the 2000s, celebrities on TV and in magazines promoted tanned or mestiza looks, rebonded hair, and branded clothes from malls like SM and Bench. Music videos and beauty pageants also influenced how teens dressed and acted. This pattern of media affecting self-image holds across decades: before 2000 it was movie stars and VHS tapes, after 2010 it shifted to Instagram models and K-pop idols. The difference in the 2000s is that trends spread slower through TV and magazines, not instantly like on TikTok today.",
+   takeaway:"Body image in the decade remained anchored to Western/mestiza beauty ideals, commercialized and intensified through the booming whitening-product and fitness industries.",
+   ex:[
+    { t:"Comparing Yourself to the Screen", by:"Kaye", pic:{bg:"night",o:["tv","mirror"]},
+      body:"Television and advertisements could make people compare their appearance with celebrities and popular images." },
+    { t:"The Fair-Skin, Slim-Body Ideal", by:"Yza", pic:{bg:"dawn",o:["mirror","star"]},
+      body:"Television and magazine ads promoted the “fair skin” and slim body ideal. Korean dramas and local celebrities influenced how young people dressed and viewed beauty, making appearance a big topic in schools and media." },
+    { t:"Low-Rise Jeans and New Hairstyles", by:"Kirsten", pic:{bg:"day",o:["shirt","star"]},
+      body:"Low-rise jeans, colorful clothes, and changing hairstyles influenced how Filipino teenagers expressed their appearance and identity." },
+    { t:"The Early Aerobics Boom", by:"William", pic:{bg:"dusk",o:["dumbbell","tv"]},
+      body:"Gym culture and fitness videos gained traction with the spread of cable TV programming and the early-2000s aerobics trend." },
+    { t:"Bench, Penshoppe, and Folded & Hung", by:"Mendoza", pic:{bg:"day",o:["shirt","mall"]},
+      body:"The decade showed homegrown fashion brands such as Bench, Penshoppe, and Folded and Hung become household names." } ] },
+
+ { id:"performance", name:"Performance", short:"Performance", icon:"mic", theme:"performance", music:"performance",
+   takeaway:"Performance shifted from purely staged forms (teleserye, concerts) toward participatory, amateur spectacle (reality TV, noontime games), democratizing the path to becoming a star.",
+   ex:[
+    { t:"Mass Media Takes the Stage", by:"Kaye", pic:{bg:"night",o:["tv","mic"]},
+      body:"The decade saw a rise in mass media influence, with television, radio, and film becoming dominant platforms for popular culture. The purpose was to entertain, inform, and reflect the social realities of Filipinos." },
+    { t:"Reality Formats and Overnight Stars", by:"Yza", pic:{bg:"dusk",o:["mic","star"]},
+      body:"Performance shifted to “reality” formats. Talent and survival shows like Star in a Million and Pinoy Dream Academy made it possible for ordinary Filipinos to become stars overnight. The focus was on raw talent and audience votes." },
+    { t:"Eat Bulaga, Wowowee, and ASAP", by:"Kirsten", pic:{bg:"day",o:["tv","note"]},
+      body:"Variety shows like Eat Bulaga!, Wowowee, and ASAP made singing and dancing common forms of entertainment." },
+    { t:"The OPM Band Resurgence", by:"William", pic:{bg:"night",o:["guitar","note"]},
+      body:"The OPM band scene resurged with acts like Rivermaya, Parokya ni Edgar, and Kamikazee performing in bars and gigs, alongside an emerging “indie” performance culture." },
+    { t:"Dance Crazes in the Classroom", by:"Mendoza", pic:{bg:"dawn",o:["note","star"]},
+      body:"The Philippines got hooked with dance crazes and jingle songs which students used in school performances." } ] },
+
+ { id:"space", name:"Space", short:"Space", icon:"mall", theme:"space", music:"space",
+   takeaway:"The 2000s marked a significant transformation of cultural spaces, as urban centers, media platforms, and public venues became important sites for cultural production, social interaction, and identity formation.",
+   ex:[
+    { t:"Metro Manila as Cultural Hub", by:"Kaye", pic:{bg:"dawn",o:["mall","pin"]},
+      body:"Urban centers like Metro Manila became cultural hubs with malls, cinemas, concert venues, and TV studios serving as key sites for popular culture activities. Public spaces such as plazas and streets also hosted festivals and performances." },
+    { t:"SM, Glorietta, and the Internet Café", by:"Yza", pic:{bg:"day",o:["mall","pc"]},
+      body:"Malls became the main social spaces for youth. Places like SM and Glorietta hosted concerts, album launches, and fan meet-ups. Internet cafés also served as key spaces for gaming, chatting, and accessing Friendster." },
+    { t:"The Family Videoke Setup", by:"Kirsten", pic:{bg:"night",o:["mic","tv"]},
+      body:"Videoke bars and family videoke setups became popular social spaces where Filipinos gathered to sing and spend time together." },
+    { t:"DOTA, Counter-Strike, and Friendster Nights", by:"William", pic:{bg:"night",o:["pc","chat"]},
+      body:"Internet cafés proliferated as new communal-digital spaces for youth, used for online gaming (DOTA, Counter-Strike) and early social networking (Friendster)." },
+    { t:"The Milo Truck at the School Gate", by:"Mendoza", pic:{bg:"day",o:["cup","sun"]},
+      body:"The Milo truck visited schools, and children lined up for a free cup of cold Milo drink." } ] },
+
+ { id:"time", name:"Time", short:"Time", icon:"clock", theme:"time", music:"time",
+   takeaway:"The decade reflected the country's transition toward modernization and globalization, characterized by significant political, economic, technological, and cultural transformation that influenced everyday lifestyles.",
+   ex:[
+    { t:"Globalization on a Timeline", by:"Kaye", src:"Toral, 2003", pic:{bg:"dawn",o:["clock","globe"]},
+      body:"The country experienced economic challenges and gradual globalization, influencing consumer behavior and cultural production." },
+    { t:"Prime Time and Unli-Text Hours", by:"Yza", pic:{bg:"night",o:["tv","clock"]},
+      body:"Daily routines followed media schedules. After-school hours were for anime and teen shows, 6–9pm was “prime time” for teleseryes, and late nights were peak hours for “unli-text” promotions." },
+    { t:"The Ber Months Begin", by:"Kirsten", pic:{bg:"night",o:["tree","star"]},
+      body:"The “ber months” Christmas season became associated with starting Christmas celebrations as early as September, including Christmas music and decorations." },
+    { t:"Teleserye Structured the Household", by:"William", pic:{bg:"dusk",o:["tv","heart"]},
+      body:"Teleserye scheduling structured domestic daily routines around fixed primetime blocks, organizing family time around the television." },
+    { t:"The Pacquiao Fight Effect", by:"Mendoza", pic:{bg:"night",o:["glove","clock"]},
+      body:"Manny Pacquiao's fight time is known to result in no traffic in EDSA and zero crime rate." } ] },
+
+ { id:"technology", name:"Technology", short:"Technology", icon:"phone", focus:true, theme:"technology", music:"technology",
+   timeline:["Landlines & letters","Texting & internet cafés","Smartphones & home WiFi"],
+   essay:"A common pattern in 2000-2010 was the rise of mobile technology and the internet in daily Filipino life. Text messaging, or “texting,” became the main way to communicate because of affordable “unli-text” promos from Globe and Smart. Internet cafés or “comshops” were the main spaces for playing games like Ragnarok and accessing Friendster and Multiply. This pattern holds across decades: before 2000, Filipinos used landlines and letters; after 2010, the same need to connect shifted to smartphones, Facebook, and mobile data. From SMS and comshops to apps and home WiFi.",
+   takeaway:"Technological development from 2000-2010 reflected the country's increasing integration into the global economy and emerging information society, though electronics exports remained largely dependent on assembly and testing with limited domestic value added.",
+   ex:[
+    { t:"SMS as a Political Tool", by:"Kaye", src:"Toral, 2003", pic:{bg:"dawn",o:["phone","chat"]},
+      body:"SMS became a dominant communication technology and was used for both personal and political mobilization." },
+    { t:"Jejemon, Bluetooth, and Friendster", by:"Yza", pic:{bg:"night",o:["phone","chat"]},
+      body:"Mobile phones became personal devices. Texting in “jejemon” language and sending ringtones/MP3s via Bluetooth were common. Friendster and Multiply were the main social media platforms for self-expression." },
+    { t:"Nokia, Texting, and Friendster", by:"Kirsten", pic:{bg:"day",o:["phone","note"]},
+      body:"Nokia phones, text messaging, and Friendster changed how Filipino teenagers communicated and interacted with others." },
+    { t:"The VCD and DVD Piracy Economy", by:"William", pic:{bg:"dusk",o:["cd","tv"]},
+      body:"VCD/DVD piracy and early file-sharing shaped everyday access to global music and film for most Filipino households." },
+    { t:"CD-R King and the Lovebug Virus", by:"Mendoza", pic:{bg:"night",o:["cd","bug"]},
+      body:"CD-R King, known for selling affordable computer accessories, expanded its branches. Meanwhile, the infamous Lovebug virus, developed by a Filipino student, infected millions of Windows computers." } ] },
+
+ { id:"globalization", name:"Globalization", short:"Globalization", icon:"globe", theme:"globalization", music:"globalization",
+   takeaway:"Globalization in the Philippines was a mixed process: it expanded trade, migration, and modern services, and local culture absorbed global media bidirectionally, but it also increased vulnerability and left major social inequalities unresolved.",
+   ex:[
+    { t:"Remittances and New Labor Flows", by:"Kaye", pic:{bg:"dawn",o:["plane","peso"]},
+      body:"Overseas work became part of the globalization model, bringing remittances and new flows of labor, but also creating policy dilemmas around protection and reintegration." },
+    { t:"The Korean Wave Arrives", by:"Yza", pic:{bg:"dusk",o:["tv","heart"]},
+      body:"The Korean Wave entered the Philippines through dramas and music. American reality TV formats were also adopted locally, showing how global trends were mixed with Filipino culture." },
+    { t:"The K-Pop and Anime Wave", by:"Kirsten", pic:{bg:"night",o:["star","note"]},
+      body:"K-pop, anime, and other East Asian media became increasingly popular among Filipino youth." },
+    { t:"Charice's Viral Breakthrough", by:"William", pic:{bg:"day",o:["camera","mic"]},
+      body:"Filipino performers gained international recognition, most notably Charice Pempengco's 2007 viral YouTube fame, showing new global routes to stardom." },
+    { t:"A Virus That Went Global", by:"Mendoza", pic:{bg:"night",o:["bug","globe"]},
+      body:"The infamous Lovebug virus, developed by a Filipino student, had infected millions of Windows computers worldwide." } ] }
+];
+
+const DAWN_LINES = [
+  { who:"Kaye", pages:["The popular culture of the Philippines from 2000 to 2010 can be characterized as the “Digital Dawn Era.”","This was the decade when technology like mobile phones, SMS, and internet cafés became part of daily Filipino life."] },
+  { who:"Yza", pages:["It was also the decade when television shows and music created strong shared emotions, like “kilig,” “awa,” and “gigil,” that connected people nationwide."] },
+  { who:"Kirsten", pages:["At the same time, celebrities and media began to heavily influence beauty standards and fashion, from rebonded hair to mall brands."] },
+  { who:"William", pages:["Many patterns that started in the 2000s, like texting culture, reality TV participation, and media-driven self-image, are still present today but have evolved with social media and smartphones."] },
+  { who:"Mendoza", pages:["The 2000-2010 period served as the bridge between analog culture and the digital, interactive culture we have now."] }
+];
+const TOTAL_EX = WINGS.reduce((n,w)=>n+w.ex.length,0);
+/* ===================== PIXEL ART: palette, 16x16 object sprites, exhibit pictures ===================== */
+const PAL={k:'#1b1b2f',w:'#f4f8ff',g:'#aab4c8',G:'#5b6478',r:'#e14c5a',R:'#9a2a3a',o:'#f0913a',y:'#ffd23f',Y:'#c9962a',
+  l:'#5bbf5a',L:'#2e7d46',b:'#3b82e0',B:'#1f3f8f',c:'#4fd6e8',p:'#ff7aa8',P:'#7a4bd0',n:'#8a5a30',N:'#5a3a1f',s:'#f2c49b',
+  C:'#e8dcc0',T:'#2fa39a',d:'#2a3a5a'};
+function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+function rng(seed){let s=seed>>>0;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296;}
+
+function outline(g){
+  const d=g.getImageData(0,0,16,16),a=d.data,o=new Uint8ClampedArray(a),k=[0x1b,0x1b,0x2f];
+  const A=(x,y)=>x<0||y<0||x>15||y>15?0:a[(y*16+x)*4+3];
+  for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+    if(A(x,y)===0&&(A(x-1,y)||A(x+1,y)||A(x,y-1)||A(x,y+1))){const i=(y*16+x)*4;o[i]=k[0];o[i+1]=k[1];o[i+2]=k[2];o[i+3]=255;}
+  }
+  g.putImageData(new ImageData(o,16,16),0,0);
+}
+function mkSprite(fn,noOutline){
+  const c=cv(16,16),g=c.getContext('2d');
+  const r=(x,y,w,h,k)=>{g.fillStyle=PAL[k];g.fillRect(x,y,w,h);};
+  const px=(x,y,k)=>r(x,y,1,1,k);
+  const cl=(x,y)=>g.clearRect(x,y,1,1);
+  const disc=(cx,cy,rad,k)=>{g.fillStyle=PAL[k];for(let y=0;y<16;y++)for(let x=0;x<16;x++){const dx=x+.5-cx,dy=y+.5-cy;if(dx*dx+dy*dy<=rad*rad)g.fillRect(x,y,1,1);}};
+  const str=(rows,ox,oy)=>rows.forEach((row,j)=>[...row].forEach((ch,i)=>{if(ch!=='.')px(ox+i,oy+j,ch);}));
+  fn({r,px,cl,disc,str});
+  if(!noOutline)outline(g);
+  return c;
+}
+
+const SPR={
+ phone:mkSprite(({r,px,cl})=>{
+  r(3,1,10,14,'B');r(4,2,8,12,'b');r(5,3,6,4,'k');r(6,4,4,2,'l');px(6,4,'L');px(9,5,'L');
+  [8,10,12].forEach(y=>[5,7,9].forEach(x=>px(x,y,'w')));
+  cl(3,1);cl(12,1);cl(3,14);cl(12,14);r(7,1,2,1,'G');}),
+ tv:mkSprite(({r,px})=>{
+  px(4,0,'k');px(5,1,'k');px(6,2,'k');px(11,0,'k');px(10,1,'k');px(9,2,'k');
+  r(1,3,14,10,'n');r(3,5,8,6,'k');r(4,6,6,4,'c');r(4,6,3,1,'w');px(4,7,'w');
+  r(12,6,2,2,'y');r(12,9,2,1,'G');r(3,13,2,2,'N');r(11,13,2,2,'N');}),
+ boombox:mkSprite(({r,px})=>{
+  r(3,2,10,1,'G');px(3,3,'G');px(12,3,'G');r(1,4,14,9,'G');r(2,5,12,7,'g');
+  r(3,6,4,4,'k');r(4,7,2,2,'G');px(4,7,'w');r(9,6,4,4,'k');r(10,7,2,2,'G');px(10,7,'w');
+  r(7,5,2,2,'k');r(7,5,2,1,'c');r(6,10,1,2,'r');r(7,10,1,2,'y');r(8,10,1,2,'l');r(9,10,1,2,'w');}),
+ heart:mkSprite(({r,px,str})=>{
+  str(['..rr..rr..','.rrrrrrrr.','rpprrrrrrr','rprrrrrrrr','.rrrrrrrR.','..rrrrRR..','...rrRR...','....rR....'],3,4);}),
+ mic:mkSprite(({str})=>{
+  str(['..gggggg..','.gwwgggggg','.gwggggGgg','.ggggggGgg','.gggggGGgg','..ggGGGg..','...GGGG...','....GG....','....nn....','....nn....','....nn....','....NN....'],3,2);}),
+ mall:mkSprite(({r,px})=>{
+  r(1,4,14,10,'C');r(0,3,16,2,'T');r(5,0,6,3,'r');r(6,1,1,1,'w');r(8,1,2,1,'w');
+  [[3,6],[7,6],[11,6],[3,9],[11,9]].forEach(([x,y])=>r(x,y,2,2,'c'));r(7,10,2,4,'N');px(8,12,'y');r(1,13,14,1,'G');}),
+ pc:mkSprite(({r,px})=>{
+  r(2,1,12,9,'g');r(3,2,10,7,'k');r(4,3,8,5,'c');r(5,4,4,1,'w');r(5,6,3,1,'w');px(10,6,'l');
+  r(6,10,4,1,'G');r(5,11,6,1,'G');r(1,12,14,3,'G');r(2,13,12,1,'g');px(12,9,'l');}),
+ cd:mkSprite(({r,px,cl,disc})=>{
+  disc(8,8,7,'g');disc(8,8,6,'w');disc(8,8,2.4,'g');disc(8,8,1.2,'k');
+  px(4,5,'c');px(5,4,'c');px(6,3,'p');px(11,10,'p');px(10,11,'c');px(12,9,'c');px(4,9,'y');px(3,8,'y');}),
+ shirt:mkSprite(({str,px})=>{
+  str(['..bb......bb..','.bbbb....bbbb.','bbbbbbbbbbbbbb','bbbbbbbbbbbbbb','.bbbbbbbbbbbb.','...bbbbbbbb...','...bbbbbbbb...','...bbbbbbbb...','...bbbbbbbb...','...bbbbbbbb...'],1,3);
+  px(6,6,'w');px(7,6,'w');px(8,6,'w');px(9,6,'w');px(7,7,'w');px(8,7,'w');}),
+ mirror:mkSprite(({r,px})=>{
+  r(5,1,6,1,'Y');r(4,2,8,1,'Y');r(3,3,10,9,'Y');r(4,12,8,1,'Y');r(5,13,6,1,'Y');
+  r(5,3,6,9,'c');r(6,2,4,1,'c');r(6,12,4,1,'c');r(6,4,1,3,'w');px(7,3,'w');px(9,10,'w');r(7,14,2,1,'N');r(5,15,6,1,'N');}),
+ clock:mkSprite(({r,px,disc})=>{
+  disc(3.5,3.5,2.6,'r');disc(12.5,3.5,2.6,'r');disc(8,9,6.4,'k');disc(8,9,5.6,'w');
+  r(8,5,1,4,'k');r(8,9,3,1,'k');px(8,4,'r');px(8,14,'k');px(3,9,'k');px(13,9,'k');r(4,15,2,1,'G');r(10,15,2,1,'G');}),
+ globe:mkSprite(({r,px,disc})=>{
+  disc(8,7,6,'B');disc(8,7,5,'b');r(4,4,3,3,'l');r(7,3,2,2,'l');r(8,7,3,3,'l');r(5,9,2,2,'l');px(10,5,'l');
+  r(3,13,10,1,'Y');r(7,12,2,1,'Y');r(5,14,6,1,'Y');px(5,4,'w');px(4,5,'w');}),
+ plane:mkSprite(({r,px})=>{
+  r(7,1,2,13,'w');r(6,2,4,1,'w');r(1,6,14,2,'w');r(2,5,12,1,'g');r(5,12,6,1,'w');r(4,13,8,1,'g');
+  px(7,3,'c');px(8,3,'c');px(7,1,'g');r(1,8,14,1,'g');}),
+ star:mkSprite(({str})=>{
+  str(['.....y.....','.....y.....','....yyy....','yyyyyyyyyyy','.yyyyyyyyy.','..yyyyyyy..','..yyyyyyy..','.yyyy.yyyy.','.yyy...yyy.'],2,3);}),
+ chat:mkSprite(({r,px,cl})=>{
+  r(1,2,14,9,'w');cl(1,2);cl(14,2);cl(1,10);cl(14,10);r(4,11,2,2,'w');px(4,13,'w');
+  r(4,6,2,2,'k');r(7,6,2,2,'k');r(10,6,2,2,'k');}),
+ dumbbell:mkSprite(({r})=>{
+  r(1,5,3,6,'R');r(12,5,3,6,'R');r(4,4,2,8,'r');r(10,4,2,8,'r');r(6,7,4,2,'g');r(1,6,1,1,'p');r(4,5,1,1,'p');}),
+ guitar:mkSprite(({r,px,disc})=>{
+  r(7,1,2,9,'N');r(6,0,4,2,'N');px(6,1,'w');px(9,1,'w');disc(8,12,4,'o');disc(8,8.6,2.8,'o');
+  disc(8,11.5,1.4,'k');r(6,13,4,1,'N');r(7,2,1,8,'y');}),
+ glove:mkSprite(({r,px})=>{
+  r(3,3,9,8,'r');r(2,5,2,5,'r');r(11,5,3,3,'r');r(3,9,2,2,'R');r(4,11,7,3,'w');r(4,12,7,1,'g');px(5,4,'p');px(6,4,'p');px(5,5,'p');}),
+ cup:mkSprite(({r,px})=>{
+  r(3,3,10,1,'w');r(4,4,8,9,'L');r(5,13,6,1,'L');r(5,7,6,3,'y');px(6,8,'L');px(8,8,'L');px(9,8,'L');r(4,4,8,1,'n');r(10,0,1,4,'r');r(10,0,3,1,'r');}),
+ gift:mkSprite(({r,px})=>{
+  r(2,6,12,8,'r');r(1,4,14,3,'R');r(7,4,2,10,'y');r(2,9,12,1,'y');r(5,2,3,3,'y');r(8,2,3,3,'y');px(7,3,'R');px(8,3,'R');}),
+ tree:mkSprite(({r,px})=>{
+  r(7,0,2,2,'y');r(6,2,4,3,'L');r(4,5,8,3,'L');r(2,8,12,4,'L');r(7,12,2,3,'N');
+  px(5,6,'r');px(10,9,'c');px(4,10,'y');px(8,7,'p');px(11,6,'y');px(6,10,'r');}),
+ bug:mkSprite(({r,px,disc})=>{
+  disc(8,9.5,4.2,'r');disc(8,4.6,2.2,'k');r(3,7,3,1,'k');r(3,10,3,1,'k');r(10,7,3,1,'k');r(10,10,3,1,'k');r(3,13,3,1,'k');r(10,13,3,1,'k');
+  px(6,2,'k');px(10,2,'k');px(7,8,'k');px(10,9,'k');px(7,12,'k');px(9,11,'k');r(8,6,1,8,'R');}),
+ peso:mkSprite(({r,px,disc})=>{
+  disc(8,8,6.4,'Y');disc(8,8,5.4,'y');r(6,4,1,8,'k');r(6,4,4,1,'k');r(9,5,1,2,'k');r(6,7,4,1,'k');r(5,6,6,1,'k');r(5,8,6,1,'k');px(5,10,'w');px(4,7,'w');}),
+ camera:mkSprite(({r,px,disc})=>{
+  r(2,5,12,9,'G');r(2,5,12,2,'g');r(4,3,3,2,'G');r(10,3,3,2,'y');disc(8,10,3.3,'k');disc(8,10,2.3,'c');px(7,9,'w');r(12,8,1,1,'r');}),
+ note:mkSprite(({r,px})=>{
+  r(5,2,1,9,'w');r(11,3,1,8,'w');r(5,2,7,2,'w');r(3,10,3,3,'w');r(9,10,3,3,'w');px(3,10,'g');px(9,10,'g');}),
+ pin:mkSprite(({r,px,disc})=>{
+  disc(8,6,5,'r');r(6,10,4,2,'r');r(7,12,2,2,'r');disc(8,6,2,'w');px(5,4,'p');px(5,5,'p');}),
+ sun:mkSprite(({r,px,disc})=>{
+  disc(8,8,4,'y');r(7,1,2,2,'y');r(7,13,2,2,'y');r(1,7,2,2,'y');r(13,7,2,2,'y');px(3,3,'y');px(12,3,'y');px(3,12,'y');px(12,12,'y');px(7,7,'w');})
+};
+
+/* ---- exhibit pictures: pixel scenes composed from a backdrop + two 2x sprites ---- */
+const BG={
+  dawn:{bands:['#2a2a6a','#5a3a8a','#c0508a','#ff7a7a','#ffb070','#ffd890'],ground:'#2e7d46',dark:'#1f5a34',sun:'#fff0b0'},
+  day:{bands:['#3a8ae0','#5aa0ee','#7ab8f4','#9acdf8','#b8defa','#d6ecfc'],ground:'#4fae4a',dark:'#38903a',clouds:true},
+  dusk:{bands:['#1a1a4a','#3a2a6a','#7a3a7a','#c0507a','#f07a5a','#ffb060'],ground:'#3a2a52',dark:'#2a1e3e',sun:'#ffd070'},
+  night:{bands:['#05061a','#0a0f33','#10184a','#18246a','#1f2f7a','#26398a'],ground:'#14204a',dark:'#0c1434',stars:true,moon:true}
+};
+const picCache={};
+function makePicture(rec){
+  const key=rec.bg+rec.o.join(',');
+  if(picCache[key])return picCache[key];
+  const c=cv(80,48),g=c.getContext('2d'),b=BG[rec.bg],R=rng(rec.o.join('').length*977+rec.bg.length*131);
+  g.imageSmoothingEnabled=false;
+  b.bands.forEach((col,i)=>{g.fillStyle=col;g.fillRect(0,i*6,80,6);
+    if(i<5){g.fillStyle=b.bands[i+1];for(let x=0;x<80;x+=2)g.fillRect(x+(i%2),i*6+5,1,1);}});
+  if(b.stars){g.fillStyle='#ffffff';for(let i=0;i<22;i++)g.fillRect((R()*78)|0,(R()*30)|0,1,1);}
+  if(b.moon){g.fillStyle='#f4f0c8';g.fillRect(64,5,6,6);g.fillRect(63,6,8,4);g.fillStyle=b.bands[0];g.fillRect(66,5,3,3);}
+  if(b.sun){g.fillStyle=b.sun;g.fillRect(34,28,12,8);g.fillRect(36,26,8,2);}
+  if(b.clouds){g.fillStyle='#ffffff';[[8,6,16],[50,10,18],[28,16,12]].forEach(([x,y,w])=>{g.fillRect(x,y,w,3);g.fillRect(x+3,y-2,w-8,2);});}
+  g.fillStyle=b.ground;g.fillRect(0,36,80,12);g.fillStyle=b.dark;for(let x=0;x<80;x+=4)g.fillRect(x,38+(x/4%3),2,1);g.fillRect(0,36,80,1);
+  [[8,rec.o[0]],[40,rec.o[1]]].forEach(([x,k])=>{
+    g.fillStyle='rgba(0,0,0,.28)';g.fillRect(x+4,38,24,3);
+    g.drawImage(SPR[k],0,0,16,16,x,6,32,32);});
+  g.fillStyle='#1b1b2f';g.fillRect(0,0,80,2);g.fillRect(0,46,80,2);g.fillRect(0,0,2,48);g.fillRect(78,0,2,48);
+  g.fillStyle='#e8b33d';g.fillRect(1,1,78,1);g.fillRect(1,46,78,1);g.fillRect(1,1,1,46);g.fillRect(78,1,1,46);
+  return picCache[key]=c;
+}
+/* ===================== PIXEL ART: tiles, characters, props ===================== */
+const THEMES={
+  grounds:{ft:'grass'},
+  affect:{ft:'checker',f1:'#f4d6e4',f2:'#e8b8cf',wall:'#8a2a5a',wallD:'#6e2048',trim:'#e8b33d',car:'#c8344f',edge:'#ffd23f'},
+  body:{ft:'checker',f1:'#e4f4f2',f2:'#bfe3df',wall:'#1d6f6b',wallD:'#15564f',trim:'#9ee8e0',car:'#2aa39a',edge:'#e4f4f2'},
+  performance:{ft:'planks',f1:'#b8803f',f2:'#a06d33',wall:'#6a1a2a',wallD:'#521320',trim:'#e8b33d',car:'#8a1f3a',edge:'#ffd23f'},
+  space:{ft:'cobble',f1:'#a8adb8',f2:'#8d93a0',wall:'#3e5b7a',wallD:'#2e4660',trim:'#cfe0f2',car:'#4f86c6',edge:'#cfe0f2'},
+  time:{ft:'parquet',f1:'#6a4a3a',f2:'#58392c',wall:'#4a2f7a',wallD:'#38225e',trim:'#e8b33d',car:'#7a4bd0',edge:'#c9a6ff'},
+  technology:{ft:'circuit',f1:'#0f1c42',f2:'#13265a',wall:'#0c1634',wallD:'#08102a',trim:'#4fd6e8',car:'#1d4fa8',edge:'#4fd6e8'},
+  globalization:{ft:'checker',f1:'#e6f0fa',f2:'#cfe0f2',wall:'#1f5aa8',wallD:'#17448a',trim:'#ffd23f',car:'#2e8a5a',edge:'#ffd23f'},
+  lobby:{ft:'checker',f1:'#f2ead6',f2:'#e0d4b4',wall:'#14257a',wallD:'#0e1a5c',trim:'#e8b33d',car:'#a82a3a',edge:'#ffd23f'},
+  dawn:{ft:'stars',f1:'#1a1040',f2:'#241658',wall:'#0f0a30',wallD:'#0a0622',trim:'#ffd23f',car:'#e8b33d',edge:'#fff0b0'}
+};
+const SOLID_TILES=new Set(['T','b','~','R','M','Q','N','v','w','x']);
+const tileCache={};
+
+function tileCanvas(ch,thKey,v,frame,state){
+  const key=ch+'|'+thKey+'|'+v+'|'+frame+'|'+(state||0);
+  if(tileCache[key])return tileCache[key];
+  const c=cv(16,16),g=c.getContext('2d'),th=THEMES[thKey]||THEMES.grounds,R0=rng(v*7919+ch.charCodeAt(0)*31);
+  const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
+  const grass=()=>{R(0,0,16,16,'#58b84f');for(let i=0;i<9;i++){R((R0()*15)|0,(R0()*15)|0,1,1,i%3?'#459c42':'#76d06a');}};
+  const cream=()=>{R(0,0,16,16,'#e8dcc0');R(0,7,16,1,'#cdbf9c');R(5,0,1,7,'#cdbf9c');R(11,8,1,8,'#cdbf9c');R(0,15,16,1,'#d8ccb0');};
+  switch(ch){
+   case '.':grass();break;
+   case ',':grass();[[3,4,'#ff7aa8'],[10,3,'#ffd23f'],[7,10,'#f4f8ff'],[12,12,'#ff7aa8']].forEach(([x,y,col],i)=>{if((i+v)%4!==3){R(x,y,2,2,col);R(x,y+2,1,1,'#2e7d46');}});break;
+   case '_':R(0,0,16,16,'#cdbf9c');R(0,5,16,1,'#b4a580');R(0,11,16,1,'#b4a580');R(4,0,1,5,'#b4a580');R(11,5,1,6,'#b4a580');R(5,11,1,5,'#b4a580');R(1,1,2,1,'#e3d7b8');R(7,7,2,1,'#e3d7b8');R(12,13,2,1,'#e3d7b8');break;
+   case '=':R(0,0,16,16,'#e0d4b4');R(0,7,16,1,'#c8b98f');R(7,0,1,7,'#c8b98f');R(3,8,1,8,'#c8b98f');R(12,8,1,8,'#c8b98f');R(1,1,2,1,'#f4ecd2');R(9,10,2,1,'#f4ecd2');break;
+   case '~':R(0,0,16,16,'#3a78d8');R(1,8,3,1,'#2c5fb0');R(11,3,3,1,'#2c5fb0');
+     if(frame){R(5,4,4,1,'#7fb5f0');R(6,11,4,1,'#7fb5f0');R(12,7,2,1,'#7fb5f0');}else{R(2,4,4,1,'#7fb5f0');R(9,11,4,1,'#7fb5f0');R(4,7,2,1,'#7fb5f0');}break;
+   case 'T':grass();R(4,13,8,2,'rgba(0,0,0,.22)');R(7,10,2,5,'#5a3a1f');
+     R(4,1,8,1,'#2e7d46');R(2,2,12,1,'#2e7d46');R(1,3,14,6,'#2e7d46');R(2,9,12,1,'#2e7d46');R(4,10,8,1,'#2e7d46');
+     R(4,2,5,1,'#58b84f');R(3,3,6,2,'#58b84f');R(5,5,2,1,'#58b84f');R(10,6,3,2,'#246a3a');R(3,7,3,1,'#246a3a');break;
+   case 'b':grass();R(3,8,10,5,'#2e7d46');R(2,9,12,3,'#2e7d46');R(4,8,5,2,'#58b84f');R(10,10,2,2,'#246a3a');R(5,13,6,1,'rgba(0,0,0,.2)');break;
+   case 'R':R(0,0,16,16,'#3a4a7a');for(let y=0;y<16;y+=4){R(0,y+3,16,1,'#26335c');for(let x=(y/4%2)*4;x<16;x+=8)R(x,y,4,3,'#4a5f9a');}break;
+   case 'M':cream();break;
+   case 'Q':cream();R(3,0,10,16,'#f4f0e4');R(3,0,1,16,'#d8d0bc');R(12,0,1,16,'#bfb6a0');R(2,0,12,2,'#fff8e8');R(2,14,12,2,'#fff8e8');R(7,2,1,12,'#e4dcc8');break;
+   case 'N':cream();R(4,2,8,13,'#2a3a5a');R(5,1,6,1,'#2a3a5a');R(5,3,6,11,'#7fb5f0');R(6,2,4,1,'#7fb5f0');R(7,2,2,12,'#e8dcc0');R(5,8,6,1,'#e8dcc0');R(5,4,1,3,'#cfe6fa');break;
+   case 'D':{ // door
+     if(thKey==='grounds'){cream();R(1,0,14,16,'#c9962a');R(2,1,12,15,'#5a3a1f');R(7,1,2,15,'#3e2814');R(3,3,3,5,'#6a4626');R(10,3,3,5,'#6a4626');R(3,9,3,6,'#6a4626');R(10,9,3,6,'#6a4626');R(6,9,1,2,'#ffd23f');R(9,9,1,2,'#ffd23f');}
+     else{R(0,0,16,16,th.wall);R(1,0,14,16,th.trim);R(2,1,12,15,'#5a3a1f');R(3,2,10,14,'#6a4626');R(7,2,2,14,'#4a2e18');R(4,4,3,4,'#7a5430');R(9,4,3,4,'#7a5430');R(6,9,1,2,'#ffd23f');R(9,9,1,2,'#ffd23f');}
+     break;}
+   case 'G':R(0,0,16,16,'#1a1230');R(0,0,16,2,'#ffd23f');R(0,0,2,16,'#ffd23f');R(14,0,2,16,'#ffd23f');
+     if(!state){for(let x=3;x<14;x+=3){R(x,2,1,14,'#e8b33d');}R(2,6,12,1,'#ffd23f');R(2,11,12,1,'#ffd23f');R(5,5,6,6,'#c9962a');R(6,6,4,4,'#241a08');R(7,3,2,3,'#ffd23f');R(7,7,2,2,'#ffd23f');}
+     else{R(2,2,12,14,'#fff0b0');R(4,4,8,12,'#ffe48a');R(6,6,4,10,'#ffffff');}
+     break;
+   case 'v':R(0,0,16,16,th.wall);R(0,0,16,2,th.trim);R(0,2,16,1,th.wallD);R(7,3,2,13,th.wallD);R(0,15,16,1,th.wallD);break;
+   case 'w':R(0,0,16,16,th.wall);R(0,0,16,1,th.wallD);R(2,2,5,9,th.wallD);R(9,2,5,9,th.wallD);R(3,3,3,7,th.wall);R(10,3,3,7,th.wall);R(0,11,16,2,th.trim);R(0,13,16,3,th.wallD);R(0,13,16,1,th.trim);break;
+   case 'x':R(0,0,16,16,'#05060f');break;
+   case 'f':{ // themed floor
+     const f1=th.f1,f2=th.f2;
+     if(th.ft==='checker'){R(0,0,16,16,f1);R(0,0,8,8,f2);R(8,8,8,8,f2);R(0,0,16,1,'rgba(255,255,255,.35)');R(0,0,1,16,'rgba(255,255,255,.25)');}
+     else if(th.ft==='planks'){R(0,0,16,16,f1);for(let y=0;y<16;y+=4){R(0,y+3,16,1,f2);R(((y/4+v)%2)*8+4,y,1,3,f2);}R(2,1,3,1,'rgba(255,255,255,.18)');}
+     else if(th.ft==='cobble'){R(0,0,16,16,f1);R(0,5,16,1,f2);R(0,11,16,1,f2);R(5,0,1,5,f2);R(11,5,1,6,f2);R(4,11,1,5,f2);R(1,1,2,1,'rgba(255,255,255,.3)');R(8,7,2,1,'rgba(255,255,255,.3)');}
+     else if(th.ft==='parquet'){R(0,0,16,16,f1);for(let i=0;i<4;i++){R(0,i*4,8,1,f2);R(8+(i%2?0:0),i*4+2,8,1,f2);}R(8,0,1,8,f2);R(0,8,1,8,f2);R(8,8,8,1,f2);R(4,8,1,8,f2);R(12,0,1,8,f2);}
+     else if(th.ft==='circuit'){R(0,0,16,16,f1);R(0,0,16,1,f2);R(0,0,1,16,f2);R(8,0,1,16,'#0c1636');R(0,8,16,1,'#0c1636');
+       const tr=v%2?[[0,5,6,1],[6,5,1,6],[6,11,5,1]]:[[3,2,1,6],[3,8,7,1],[10,8,1,5]];tr.forEach(a=>R(...a,th.trim));R(v%2?6:10,v%2?11:13,2,2,'#e8f8ff');}
+     else if(th.ft==='stars'){R(0,0,16,16,(v%2)?f1:f2);for(let i=0;i<4;i++)R((R0()*15)|0,(R0()*15)|0,1,1,i%2?'#fff0b0':'#7a8aff');}
+     break;}
+   case 'c':case 'C':case 'e':{
+     R(0,0,16,16,th.car);R(0,0,16,1,'rgba(0,0,0,.12)');
+     if(ch==='c'){R(0,0,2,16,th.edge);R(2,0,1,16,'rgba(0,0,0,.25)');}
+     if(ch==='C'){R(14,0,2,16,th.edge);R(13,0,1,16,'rgba(0,0,0,.25)');}
+     R(6,5,4,1,th.edge);R(5,6,6,1,th.edge);R(6,7,4,1,th.edge);R(7,4,2,1,th.edge);R(7,8,2,1,th.edge);
+     break;}
+  }
+  return tileCache[key]=c;
+}
+
+/* ---- characters (16x16, 4 directions x 2 walk frames) ---- */
+const charCache={};
+function drawCharFrame(g,dir,fr,p){
+  const R=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h);};
+  R(4,14,8,2,'rgba(0,0,0,.28)');
+  const lH=fr?2:3,rH=fr?3:2;
+  const body=()=>{R(4,9,8,4,p.top);R(4,9,8,1,p.acc);R(4,12,8,1,p.belt||p.acc);R(3,10,1,3,p.top);R(12,10,1,3,p.top);R(3,13,1,1,p.skin);R(12,13,1,1,p.skin);};
+  const legs=()=>{R(5,13,2,lH,p.bot);R(9,13,2,rH,p.bot);if(lH===3)R(5,15,2,1,'#2a1e1a');if(rH===3)R(9,15,2,1,'#2a1e1a');};
+  if(dir==='u'){
+    if(p.cape)R(3,9,10,5,p.cape);
+    legs();if(!p.cape)body();else{R(4,9,8,1,p.acc);}
+    R(4,2,8,7,p.skin);R(3,1,10,9,p.hair);if(p.spike){R(4,0,2,1,p.hair);R(7,0,2,1,p.hair);R(10,0,2,1,p.hair);}
+    if(p.long)R(3,4,10,9,p.hair);if(p.band)R(3,3,10,1,p.band);if(p.hat){R(3,0,10,2,p.hat);R(2,2,12,1,p.hat);}
+  }else if(dir==='d'){
+    legs();body();if(p.cape){R(3,10,1,4,p.cape);R(12,10,1,4,p.cape);}
+    R(4,2,8,7,p.skin);R(3,1,10,3,p.hair);R(3,4,1,3,p.hair);R(12,4,1,3,p.hair);R(4,4,8,1,p.hair);
+    if(p.spike){R(4,0,2,1,p.hair);R(7,0,2,1,p.hair);R(10,0,2,1,p.hair);}
+    if(p.long){R(3,4,2,8,p.hair);R(11,4,2,8,p.hair);}
+    if(p.band)R(3,3,10,1,p.band);
+    R(5,6,1,2,'#1b1b2f');R(10,6,1,2,'#1b1b2f');R(7,8,2,1,'#c98a6a');
+    if(p.hat){R(3,0,10,2,p.hat);R(2,2,12,1,p.hat);}
+  }else{ // left (right is mirrored)
+    legs();R(5,9,7,4,p.top);R(5,9,7,1,p.acc);R(5,12,7,1,p.belt||p.acc);R(6,10,3,3,p.top);R(6,13,1,1,p.skin);
+    if(p.cape)R(10,9,3,5,p.cape);
+    R(4,2,8,7,p.skin);R(4,1,9,3,p.hair);R(9,3,4,6,p.hair);R(4,4,1,2,p.hair);
+    if(p.spike){R(5,0,2,1,p.hair);R(8,0,2,1,p.hair);R(11,0,2,1,p.hair);}
+    if(p.long)R(9,3,4,10,p.hair);
+    if(p.band)R(4,3,9,1,p.band);
+    R(5,6,1,2,'#1b1b2f');
+    if(p.hat){R(4,0,9,2,p.hat);R(3,2,10,1,p.hat);}
+  }
+}
+function charFrames(p){
+  const key=JSON.stringify(p);
+  if(charCache[key])return charCache[key];
+  const out={};
+  ['d','u','l','r'].forEach(dir=>{out[dir]=[0,1].map(fr=>{
+    const c=cv(16,16),g=c.getContext('2d');
+    if(dir==='r'){g.translate(16,0);g.scale(-1,1);drawCharFrame(g,'l',fr,p);}else drawCharFrame(g,dir,fr,p);
+    return c;});});
+  return charCache[key]=out;
+}
+const HERO={hair:'#2a3a9a',skin:'#f2c49b',top:'#2f6bd8',acc:'#ffd23f',belt:'#8a5a30',bot:'#f4f8ff',cape:'#e14c5a',spike:1,band:'#ffd23f'};
+const NPCP={
+  guide:{hair:'#5a3a1f',skin:'#e8b58a',top:'#2fa39a',acc:'#f4f8ff',bot:'#3a4a7a',hat:'#f0913a'},
+  kid:{hair:'#1b1b2f',skin:'#e8b58a',top:'#ffd23f',acc:'#f0913a',bot:'#3b82e0'},
+  lady:{hair:'#2a1a1a',skin:'#f2c49b',top:'#ff7aa8',acc:'#f4f8ff',bot:'#7a4bd0',long:1},
+  man:{hair:'#3a2a1a',skin:'#d9a070',top:'#5bbf5a',acc:'#2e7d46',bot:'#5a3a1f'},
+  elder:{hair:'#cfd6e4',skin:'#e8b58a',top:'#9a5ab8',acc:'#f4f8ff',bot:'#4a3a6a',long:0},
+  student:{hair:'#1b1b2f',skin:'#f2c49b',top:'#f4f8ff',acc:'#3b82e0',bot:'#1f3f8f'},
+  rocker:{hair:'#e14c5a',skin:'#f2c49b',top:'#1b1b2f',acc:'#e14c5a',bot:'#2a3a5a',spike:1},
+  cur_affect:{hair:'#5a2a3a',skin:'#f2c49b',top:'#c8344f',acc:'#ffd23f',bot:'#6e2048',hat:'#ffd23f',long:1},
+  cur_body:{hair:'#1b1b2f',skin:'#e8b58a',top:'#2aa39a',acc:'#e4f4f2',bot:'#15564f',hat:'#9ee8e0'},
+  cur_performance:{hair:'#3a2a1a',skin:'#d9a070',top:'#8a1f3a',acc:'#ffd23f',bot:'#521320',hat:'#e8b33d'},
+  cur_space:{hair:'#2a2a3a',skin:'#f2c49b',top:'#4f86c6',acc:'#cfe0f2',bot:'#2e4660',hat:'#cfe0f2'},
+  cur_time:{hair:'#cfd6e4',skin:'#e8b58a',top:'#7a4bd0',acc:'#e8b33d',bot:'#38225e',hat:'#e8b33d'},
+  cur_technology:{hair:'#13265a',skin:'#f2c49b',top:'#1d4fa8',acc:'#4fd6e8',bot:'#08102a',hat:'#4fd6e8',spike:0},
+  cur_globalization:{hair:'#3a2a1a',skin:'#d9a070',top:'#2e8a5a',acc:'#ffd23f',bot:'#17448a',hat:'#ffd23f'},
+  Kaye:{hair:'#2a1a1a',skin:'#f2c49b',top:'#e14c82',acc:'#ffd23f',bot:'#7a4bd0',long:1,hat:'#ffd23f'},
+  Yza:{hair:'#3a2a1a',skin:'#e8b58a',top:'#4fd6e8',acc:'#f4f8ff',bot:'#1f3f8f',long:1},
+  Kirsten:{hair:'#1b1b2f',skin:'#f2c49b',top:'#5bbf5a',acc:'#ffd23f',bot:'#2e7d46',long:1,hat:'#f4f8ff'},
+  William:{hair:'#2a3a9a',skin:'#f2c49b',top:'#3b82e0',acc:'#ffd23f',bot:'#1f3f8f',spike:1},
+  Mendoza:{hair:'#5a3a1f',skin:'#d9a070',top:'#f0913a',acc:'#f4f8ff',bot:'#5a3a1f',hat:'#e14c5a'}
+};
+
+/* ---- props ---- */
+const propCache={};
+function propCanvas(kind,a,b){
+  const key=kind+'|'+(a&&typeof a==='object'?a.bg+a.o.join(','):(a||''))+'|'+(b||'');
+  if(propCache[key])return propCache[key];
+  const big=(kind==='fountain'||kind==='giant');
+  const c=cv(big?32:16,big?32:16),g=c.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
+  switch(kind){
+   case 'plant':R(5,10,6,5,'#8a5a30');R(4,10,8,1,'#a86f3a');R(6,5,4,6,'#2e7d46');R(3,6,4,4,'#58b84f');R(9,5,4,4,'#58b84f');R(6,2,4,4,'#58b84f');R(7,3,1,1,'#9be08a');break;
+   case 'bench':R(1,6,14,3,'#8a5a30');R(1,6,14,1,'#b8803f');R(2,9,2,5,'#5a3a1f');R(12,9,2,5,'#5a3a1f');R(1,3,14,2,'#a86f3a');R(1,3,14,1,'#c8904c');break;
+   case 'pillar':R(4,0,8,16,'#f4f0e4');R(4,0,1,16,'#d8d0bc');R(11,0,1,16,'#bfb6a0');R(3,0,10,2,'#fff8e8');R(3,14,10,2,'#fff8e8');R(7,2,1,12,'#e4dcc8');break;
+   case 'statue':R(3,12,10,4,'#9aa2b8');R(4,11,8,1,'#c8cfe0');R(6,3,4,4,'#c8cfe0');R(5,7,6,5,'#c8cfe0');R(4,8,1,3,'#c8cfe0');R(11,8,1,3,'#c8cfe0');R(6,3,1,1,'#9aa2b8');R(5,7,1,5,'#aab2c8');break;
+   case 'lamp':R(7,4,2,11,'#3a3a4a');R(5,14,6,2,'#2a2a38');R(4,0,8,5,'#ffe48a');R(4,0,8,1,'#3a3a4a');R(4,4,8,1,'#3a3a4a');R(6,1,2,2,'#ffffff');break;
+   case 'sign':R(7,7,2,8,'#5a3a1f');R(2,2,12,7,'#8a5a30');R(2,2,12,1,'#b8803f');R(3,4,10,1,'#f4ecd2');R(3,6,7,1,'#f4ecd2');break;
+   case 'chest':{const open=a==='open';R(2,5,12,9,'#8a5a30');R(2,5,12,1,'#b8803f');R(2,9,12,1,'#5a3a1f');R(1,5,1,9,'#c9962a');R(14,5,1,9,'#c9962a');
+     if(open){R(2,2,12,3,'#8a5a30');R(2,1,12,1,'#b8803f');R(3,6,10,3,'#ffe48a');R(5,5,2,1,'#ffffff');R(9,7,2,1,'#ffffff');}
+     else{R(2,2,12,3,'#a06d33');R(2,2,12,1,'#c8904c');R(7,8,2,3,'#ffd23f');R(7,9,2,1,'#5a3a1f');}break;}
+   case 'case':{R(2,12,12,4,'#5a3a1f');R(2,12,12,1,'#8a5a30');R(2,3,12,9,'rgba(190,225,255,.38)');
+     R(2,3,12,1,'rgba(255,255,255,.7)');R(2,3,1,9,'rgba(255,255,255,.55)');R(13,3,1,9,'rgba(255,255,255,.35)');R(3,4,1,3,'rgba(255,255,255,.75)');
+     g.drawImage(SPR[a],0,0,16,16,3,2,10,10);break;}
+   case 'painting':{R(1,1,14,12,'#c9962a');R(1,1,14,1,'#ffd23f');R(2,2,12,10,'#1b1b2f');g.imageSmoothingEnabled=true;g.drawImage(makePicture(a),0,0,80,48,3,3,10,6);g.imageSmoothingEnabled=false;
+     R(3,10,10,1,'#c9962a');R(6,13,4,1,'#ffd23f');break;}
+   case 'banner':R(4,0,8,1,'#c9962a');R(5,1,6,9,a||'#c8344f');R(5,10,2,2,a||'#c8344f');R(9,10,2,2,a||'#c8344f');R(7,3,2,2,'#ffd23f');R(7,6,2,1,'#ffd23f');break;
+   case 'giant':{R(4,28,24,3,'rgba(0,0,0,.3)');g.drawImage(SPR[a],0,0,16,16,0,0,32,32);break;}
+   case 'fountain':{
+     R(2,10,28,18,'#9aa2b8');R(1,12,30,14,'#c8cfe0');R(3,13,26,11,'#cfe0f2');
+     R(4,14,24,9,b?'#7fb5f0':'#3a78d8');R(4,14,24,1,'#cfe0f2');R(8,17,4,1,'#cfe6fa');R(18,19,5,1,'#cfe6fa');R(12,21,3,1,'#cfe6fa');
+     R(14,6,4,10,'#c8cfe0');R(13,4,6,3,'#c8cfe0');R(12,1,2,3,b?'#cfe6fa':'#7fb5f0');R(18,1,2,3,b?'#7fb5f0':'#cfe6fa');R(15,0,2,4,'#cfe6fa');R(2,26,28,2,'#7a8298');break;}
+   case 'rug':break;
+  }
+  return propCache[key]=c;
+}
+/* ===================== MAPS ===================== */
+function Grid(w,h,ch){const t=[];for(let y=0;y<h;y++){t.push(new Array(w).fill(ch));}return t;}
+function rectT(t,x,y,w,h,ch){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(t[j]&&t[j][i]!==undefined)t[j][i]=ch;}
+function strT(t,x,y,s){for(let i=0;i<s.length;i++)t[y][x+i]=s[i];}
+
+const LOBBY_DOORS={
+  affect:{x:3,y:1,sx:3,sy:2,d:'d'}, body:{x:7,y:1,sx:7,sy:2,d:'d'},
+  performance:{x:16,y:1,sx:16,sy:2,d:'d'}, space:{x:20,y:1,sx:20,sy:2,d:'d'},
+  time:{x:0,y:6,sx:1,sy:6,d:'r'}, globalization:{x:0,y:10,sx:1,sy:10,d:'r'},
+  technology:{x:23,y:8,sx:22,sy:8,d:'l'}
+};
+
+const VISITOR_LINES={
+  affect:["I cried at the finale last night… my whole family watched it together!","Ever felt kilig when the music swells? That's this room."],
+  body:["My cousin rebonded her hair for a week-long fiesta. Worth it!","Everyone wanted the look from TV back then."],
+  performance:["Reality TV made ordinary people into stars. Imagine your name on a text vote!","Pinoy Big Brother nights were a whole event."],
+  space:["Malls were the place to hang out. Aircon and free window shopping!","Internet cafés smelled like instant noodles and victory."],
+  time:["Time moves differently when the loading bar is a dial-up tone.","Some things stay; some fade like old cassette tapes."],
+  technology:["Unli-text promos changed everything. 'Pass it on' chain messages, anyone?","I kept my phone's keypad so worn out the numbers vanished."],
+  globalization:["K-pop and anime came through TV and bootleg DVDs, then everywhere.","The world felt both closer and louder."]
+};
+
+function buildGrounds(){
+  const W=30,H=20,t=Grid(W,H,'.'),R=rng(4242);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(R()<.13)t[y][x]=',';
+  rectT(t,0,0,W,1,'T');rectT(t,0,H-1,W,1,'T');rectT(t,0,0,1,H,'T');rectT(t,W-1,0,1,H,'T');
+  rectT(t,8,1,14,2,'R');
+  strT(t,8,3,'MNMMQMMMMQMMNM');strT(t,8,4,'MMQMMMDDMMMQMM');
+  rectT(t,13,5,4,1,'=');
+  rectT(t,14,6,2,12,'_');
+  rectT(t,10,7,10,7,'=');
+  rectT(t,3,8,5,4,'~');
+  rectT(t,22,10,5,5,',');
+  [[7,3],[7,4],[22,3],[22,4],[2,7],[8,8],[2,12],[26,9],[27,15]].forEach(([x,y])=>t[y][x]='b');
+  [[3,3],[5,5],[2,15],[6,16],[24,3],[26,6],[25,17],[21,17],[4,18],[9,17],[28,12],[18,16],[11,16]].forEach(([x,y])=>t[y][x]='T');
+  t[18][14]=t[18][15]='_';
+  const objs=[
+   {k:'prop',kind:'fountain',x:14,y:9,w:2,h:2,anim:1,solid:1},
+   {k:'prop',kind:'bench',x:11,y:13,solid:1},{k:'prop',kind:'bench',x:18,y:13,solid:1},
+   {k:'prop',kind:'lamp',x:10,y:7,solid:1},{k:'prop',kind:'lamp',x:19,y:7,solid:1},
+   {k:'prop',kind:'lamp',x:10,y:13,solid:1},{k:'prop',kind:'lamp',x:19,y:13,solid:1},
+   {k:'sign',kind:'sign',x:12,y:6,solid:1,text:"TRACING THE POP\nA Review of a Decade in PH Popular Culture, 2000–2010.\nThe museum doors are straight ahead. Seven wings, five exhibits each, and a Golden Gate waiting at the end."},
+   {k:'chest',id:'secret',x:27,y:17,msg:"You found the Curators' Note!\nThank you for exploring. This museum was built by Group 3: Kaye, Yza, Kirsten, William, and Mendoza.",solid:1},
+   {k:'npc',id:'guide',role:'guide',name:'Guide',pal:'guide',x:16,y:6,dir:'l'},
+   {k:'npc',id:'g_kid',name:'Kid',pal:'kid',x:8,y:14,dir:'d',wander:1,lines:["My ate used to beep me from the next room just to say hi! Beeping was the cheapest text.","Teacher says this museum is from 2000 to 2010. I was a baby, I think!"]},
+   {k:'npc',id:'g_lady',name:'Visitor',pal:'lady',x:20,y:15,dir:'l',wander:1,lines:["I came here for the teleserye wing. I can still hum the theme songs!","Walk through the doors and talk to everyone. The curators have secrets."]},
+   {k:'npc',id:'g_man',name:'Fisher',pal:'man',x:9,y:10,dir:'l',wander:0,lines:["Nothing's biting. Maybe the fish are busy texting.","Hidden treasure? I heard something glitters near the far trees, southeast."]},
+   {k:'npc',id:'g_elder',name:'Lola',pal:'elder',x:12,y:14,dir:'u',wander:0,lines:["Back then, we'd gather around the TV every evening. Everyone knew the same story.","Go on, apo. Go inside."]}
+  ];
+  return {id:'grounds',name:'Museum Grounds',w:W,h:H,theme:'grounds',music:'grounds',t,objs,
+    warps:{'14,4':{to:'lobby',x:11,y:14,d:'u'},'15,4':{to:'lobby',x:12,y:14,d:'u'}},start:{x:14,y:17,d:'u'}};
+}
+
+function buildLobby(){
+  const W=24,H=16,t=Grid(W,H,'f');
+  rectT(t,0,0,W,1,'w');rectT(t,0,1,W,1,'v');
+  rectT(t,0,0,1,H,'v');rectT(t,W-1,0,1,H,'v');rectT(t,0,H-1,W,1,'v');
+  rectT(t,10,2,1,12,'c');rectT(t,11,2,2,12,'e');rectT(t,13,2,1,12,'C');
+  rectT(t,10,H-1,4,1,'v');
+  const warps={};
+  Object.entries(LOBBY_DOORS).forEach(([id,d])=>{t[d.y][d.x]='D';warps[d.x+','+d.y]={to:id,x:9,y:12,d:'u'};});
+  t[15][11]=t[15][12]='D';
+  warps['11,15']={to:'grounds',x:14,y:6,d:'d'};warps['12,15']={to:'grounds',x:15,y:6,d:'d'};
+  t[1][11]=t[1][12]='G';
+  const objs=[];
+  Object.entries(LOBBY_DOORS).forEach(([id,d])=>{
+    const w=WINGS.find(w=>w.id===id);
+    const iy=(d.x===0||d.x===23)?d.y-1:0, ix=d.x;
+    objs.push({k:'prop',kind:'icon',a:w.icon,x:ix,y:iy,solid:1,label:w.name});
+  });
+  [[6,4],[17,4],[6,11],[17,11]].forEach(([x,y])=>objs.push({k:'prop',kind:'pillar',x,y,solid:1}));
+  [[1,2],[22,2],[1,14],[22,14]].forEach(([x,y])=>objs.push({k:'prop',kind:'plant',x,y,solid:1}));
+  [[4,12],[19,12]].forEach(([x,y])=>objs.push({k:'prop',kind:'statue',x,y,solid:1}));
+  [[8,8],[15,8]].forEach(([x,y])=>objs.push({k:'prop',kind:'bench',x,y,solid:1}));
+  [[5,7],[18,7]].forEach(([x,y])=>objs.push({k:'prop',kind:'lamp',x,y,solid:1}));
+  objs.push({k:'prop',kind:'banner',a:'#c8344f',x:9,y:1,solid:1});
+  objs.push({k:'prop',kind:'banner',a:'#c8344f',x:14,y:1,solid:1});
+  objs.push({k:'npc',id:'attendant',role:'attendant',name:'Attendant',pal:'student',x:9,y:12,dir:'r'});
+  objs.push({k:'npc',id:'l_rock',name:'Visitor',pal:'rocker',x:4,y:8,dir:'d',wander:1,lines:["Seven wings! I'm starting with Performance. Reality TV stuff.","Collect all seven stamps and the Golden Gate opens, I heard."]});
+  objs.push({k:'npc',id:'l_lady',name:'Visitor',pal:'lady',x:18,y:9,dir:'l',wander:1,lines:["Each curator keeps a treasure chest. Read all five exhibits in a wing and it opens!","The chest gives you a stamp. Magic!"]});
+  return {id:'lobby',name:'Grand Lobby',w:W,h:H,theme:'lobby',music:'lobby',t,objs,warps,gate:{x:[11,12],y:1}};
+}
+
+function buildWing(w,idx){
+  const W=18,H=14,t=Grid(W,H,'f');
+  rectT(t,0,0,W,1,'w');rectT(t,0,1,W,1,'v');
+  rectT(t,0,0,1,H,'v');rectT(t,W-1,0,1,H,'v');rectT(t,0,H-1,W,1,'v');
+  rectT(t,8,2,1,11,'c');rectT(t,9,2,1,11,'e');rectT(t,10,2,1,11,'C');
+  t[13][9]='D';
+  const d=LOBBY_DOORS[w.id];
+  const warps={'9,13':{to:'lobby',x:d.sx,y:d.sy,d:d.d==='d'?'d':d.d==='r'?'r':'l'}};
+  const objs=[];
+  const pxs=[3,9,14];
+  pxs.forEach((x,i)=>objs.push({k:'exhibit',kind:'painting',wing:w.id,i,x,y:1,solid:1}));
+  [[5,7,3],[13,7,4]].forEach(([x,y,i])=>objs.push({k:'exhibit',kind:'case',wing:w.id,i,x,y,solid:1}));
+  [[6,1],[12,1]].forEach(([x,y],j)=>objs.push({k:'prop',kind:'banner',a:['#c8344f','#2f6bd8'][(idx+j)%2],x,y,solid:1}));
+  objs.push({k:'prop',kind:'giant',a:w.icon,x:2,y:10,w:2,h:2,solid:1,bob:1});
+  [[1,2],[16,2],[1,12],[16,12]].forEach(([x,y])=>objs.push({k:'prop',kind:'plant',x,y,solid:1}));
+  objs.push({k:'prop',kind:'bench',x:14,y:11,solid:1});
+  objs.push({k:'chest',id:w.id,wing:w.id,x:15,y:9,solid:1});
+  objs.push({k:'npc',id:'cur_'+w.id,role:'curator',wing:w.id,name:'Curator',pal:'cur_'+w.id,x:7,y:4,dir:'r'});
+  const vp=['kid','lady','man','student','rocker','elder'][idx%6];
+  objs.push({k:'npc',id:'v_'+w.id,name:'Visitor',pal:vp,x:12,y:5,dir:'d',wander:1,lines:VISITOR_LINES[w.id]});
+  return {id:w.id,name:w.name,w:W,h:H,theme:w.theme,music:w.music,t,objs,warps};
+}
+
+function buildDawn(){
+  const W=16,H=12,t=Grid(W,H,'f');
+  rectT(t,0,0,W,1,'w');rectT(t,0,1,W,1,'v');
+  rectT(t,0,0,1,H,'v');rectT(t,W-1,0,1,H,'v');rectT(t,0,H-1,W,1,'v');
+  rectT(t,7,2,1,9,'c');rectT(t,8,2,1,9,'C');
+  t[11][7]=t[11][8]='D';
+  const warps={'7,11':{to:'lobby',x:11,y:2,d:'d'},'8,11':{to:'lobby',x:12,y:2,d:'d'}};
+  const objs=[
+   {k:'prop',kind:'banner',a:'#e8b33d',x:7,y:1,solid:1},{k:'prop',kind:'banner',a:'#e8b33d',x:8,y:1,solid:1},
+   {k:'prop',kind:'plant',x:1,y:2,solid:1},{k:'prop',kind:'plant',x:14,y:2,solid:1},
+   {k:'prop',kind:'lamp',x:5,y:9,solid:1},{k:'prop',kind:'lamp',x:10,y:9,solid:1},
+   {k:'prop',kind:'giant',a:'star',x:7,y:5,w:2,h:2,solid:1,bob:1}
+  ];
+  [['Kaye',2,4],['Yza',4,3],['Kirsten',11,3],['William',13,4],['Mendoza',7,8]].forEach(([n,x,y],i)=>
+    objs.push({k:'npc',id:'dawn_'+n,role:'dawn',who:n,idx:i,name:n,pal:n,x,y,dir:i<2?'r':i<4?'l':'u'}));
+  return {id:'dawn',name:'Digital Dawn Hall',w:W,h:H,theme:'dawn',music:'dawn',t,objs,warps};
+}
+
+const MAPS={};
+MAPS.grounds=buildGrounds();MAPS.lobby=buildLobby();
+WINGS.forEach((w,i)=>{MAPS[w.id]=buildWing(w,i);});
+MAPS.dawn=buildDawn();
+/* ===================== AUDIO: chiptune sequencer + sfx (WebAudio, starts after first input) ===================== */
+const MUSIC={
+  grounds:{root:60,scale:[0,2,4,5,7,9,11],bpm:98,lead:'square',bass:'triangle',dens:.7,prog:[0,4,5,3]},
+  lobby:{root:53,scale:[0,2,4,7,9],bpm:84,lead:'triangle',bass:'sine',dens:.55,prog:[0,2,3,1]},
+  affect:{root:57,scale:[0,2,3,5,7,9,10],bpm:80,lead:'triangle',bass:'sine',dens:.6,prog:[0,5,3,4]},
+  body:{root:62,scale:[0,2,4,7,9],bpm:112,lead:'square',bass:'triangle',dens:.8,prog:[0,3,4,3]},
+  performance:{root:55,scale:[0,2,4,5,7,9,11],bpm:128,lead:'sawtooth',bass:'square',dens:.85,prog:[0,5,3,4]},
+  space:{root:64,scale:[0,2,4,5,7,9,10],bpm:104,lead:'square',bass:'triangle',dens:.65,prog:[0,3,5,4]},
+  time:{root:49,scale:[0,2,3,5,7,8,10],bpm:70,lead:'sine',bass:'triangle',dens:.5,prog:[0,5,3,6]},
+  technology:{root:57,scale:[0,3,5,7,10],bpm:134,lead:'square',bass:'sawtooth',dens:.95,prog:[0,3,0,4],arp:1},
+  globalization:{root:62,scale:[0,2,4,6,7,9,11],bpm:106,lead:'triangle',bass:'triangle',dens:.75,prog:[0,4,1,3]},
+  dawn:{root:60,scale:[0,2,4,6,7,9,11],bpm:76,lead:'sine',bass:'triangle',dens:.5,prog:[0,3,4,0],arp:1}
+};
+const AU=(()=>{
+  let ctx=null,master=null,mus=null,sfxBus=null,cur=null,timer=null,pat=null,step=0,nextT=0,noiseBuf=null;
+  const A={on:true};
+  const mtof=n=>440*Math.pow(2,(n-69)/12);
+  function seeded(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return((h>>>0)%100000)/100000;};}
+  A.init=function(){
+    if(ctx){if(ctx.state==='suspended')ctx.resume();return;}
+    try{
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain();master.gain.value=A.on?.5:0;master.connect(ctx.destination);
+      mus=ctx.createGain();mus.gain.value=.32;mus.connect(master);
+      sfxBus=ctx.createGain();sfxBus.gain.value=.8;sfxBus.connect(master);
+      noiseBuf=ctx.createBuffer(1,ctx.sampleRate*.5,ctx.sampleRate);
+      const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+      if(cur){const k=cur;cur=null;A.music(k);}
+    }catch(e){ctx=null;}
+  };
+  A.toggle=function(){A.on=!A.on;if(master)master.gain.value=A.on?.5:0;};
+  function tone(bus,f,t,dur,type,vol,slideTo){
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t);if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.008);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    o.connect(g);g.connect(bus);o.start(t);o.stop(t+dur+.05);
+  }
+  function noise(bus,t,dur,vol,hp){
+    const s=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+    s.buffer=noiseBuf;f.type='highpass';f.frequency.value=hp||4000;
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+    s.connect(f);f.connect(g);g.connect(bus);s.start(t);s.stop(t+dur+.02);
+  }
+  function build(key){
+    const c=MUSIC[key],R=seeded('pop:'+key),steps=64,sc=c.scale,L=sc.length;
+    const note=(deg,oct)=>{const o=Math.floor(deg/L);return c.root+12*(oct+o)+sc[((deg%L)+L)%L];};
+    const mel=[];let d=L+Math.floor(R()*L);
+    for(let i=0;i<steps;i++){
+      const bar=(i>>4)&3,strong=i%4===0;
+      if(R()<(strong?c.dens+.25:c.dens*.55)){
+        const r=R();d+=r<.2?-2:r<.4?-1:r<.55?0:r<.8?1:2;
+        d=Math.max(L-2,Math.min(L*2+3,d));
+        mel[i]=note(d,0);
+      }else mel[i]=null;
+      if(i%16===15)d=L+c.prog[(bar+1)&3];
+    }
+    const bass=[];
+    for(let i=0;i<steps;i++){
+      const bar=(i>>4)&3,r=c.prog[bar];
+      bass[i]=i%8===0?note(r,-2):i%8===4?note(r+2,-2):(i%8===6&&R()<.4?note(r,-1):null);
+    }
+    const arp=[];
+    if(c.arp)for(let i=0;i<steps;i++){const bar=(i>>4)&3,r=c.prog[bar];arp[i]=note(r+[0,2,4,2][i&3],1);}
+    return {mel,bass,arp,dur:60/c.bpm/4};
+  }
+  A.music=function(key){
+    if(key===cur&&timer)return;
+    cur=key;
+    if(!ctx)return;
+    clearInterval(timer);
+    pat=build(key);step=0;nextT=ctx.currentTime+.1;
+    const cfg=MUSIC[key];
+    mus.gain.cancelScheduledValues(ctx.currentTime);mus.gain.setValueAtTime(0,ctx.currentTime);mus.gain.linearRampToValueAtTime(.32,ctx.currentTime+.6);
+    timer=setInterval(()=>{
+      if(!ctx)return;
+      while(nextT<ctx.currentTime+.25){
+        const i=step%64,t=nextT,du=pat.dur;
+        if(pat.mel[i]!=null)tone(mus,mtof(pat.mel[i]),t,du*(i%4===0?2.4:1.5),cfg.lead,cfg.lead==='sawtooth'?.07:.13);
+        if(pat.bass[i]!=null)tone(mus,mtof(pat.bass[i]),t,du*3.2,cfg.bass,.2);
+        if(cfg.arp&&pat.arp[i]!=null)tone(mus,mtof(pat.arp[i]),t,du*.9,'square',.045);
+        if(i%4===2)noise(mus,t,.03,.05,7000);
+        if(i%16===0)noise(mus,t,.08,.07,900);
+        step++;nextT+=du;
+      }
+    },60);
+  };
+  const SFX={
+    blip(t){tone(sfxBus,520+Math.random()*120,t,.04,'square',.05);},
+    step(t){noise(sfxBus,t,.025,.03,1800);},
+    bump(t){tone(sfxBus,110,t,.07,'square',.12,70);},
+    select(t){tone(sfxBus,880,t,.05,'square',.09);},
+    confirm(t){tone(sfxBus,660,t,.06,'square',.1);tone(sfxBus,990,t+.05,.09,'square',.1);},
+    cancel(t){tone(sfxBus,500,t,.06,'square',.09);tone(sfxBus,330,t+.05,.09,'square',.09);},
+    page(t){tone(sfxBus,740,t,.05,'triangle',.08);},
+    warp(t){tone(sfxBus,200,t,.4,'square',.1,1400);tone(sfxBus,300,t+.05,.4,'triangle',.1,1800);},
+    exhibit(t){[523,659,784].forEach((f,i)=>tone(sfxBus,f,t+i*.07,.12,'triangle',.14));},
+    stamp(t){tone(sfxBus,988,t,.08,'square',.1);tone(sfxBus,1319,t+.08,.2,'square',.1);},
+    unlock(t){[523,659,784,1047].forEach((f,i)=>tone(sfxBus,f,t+i*.08,.18,'triangle',.16));},
+    chest(t){[392,494,587,784,988].forEach((f,i)=>tone(sfxBus,f,t+i*.09,.2,'square',.1));},
+    locked(t){tone(sfxBus,150,t,.09,'square',.12);tone(sfxBus,130,t+.1,.12,'square',.12);},
+    fanfare(t){[[523,.0,.12],[523,.14,.12],[523,.28,.12],[523,.42,.3],[415,.76,.3],[466,1.08,.3],[523,1.4,.12],[466,1.55,.1],[523,1.67,.5]].forEach(([f,o,d])=>{tone(sfxBus,f,t+o,d,'square',.12);tone(sfxBus,f/2,t+o,d,'triangle',.14);});},
+    gate(t){noise(sfxBus,t,.8,.16,200);tone(sfxBus,80,t,.9,'sawtooth',.1,300);[392,523,659,784,1047].forEach((f,i)=>tone(sfxBus,f,t+.5+i*.1,.5,'triangle',.12));}
+  };
+  A.sfx=function(n){if(!ctx||!A.on)return;const f=SFX[n];if(f)try{f(ctx.currentTime+.005);}catch(e){}};
+  return A;
+})();
+/* ===================== ENGINE CORE: state, input, movement, rendering ===================== */
+const $=id=>document.getElementById(id);
+const view=$('view'),vg=view.getContext('2d');vg.imageSmoothingEnabled=false;
+const SAVE_KEY='tracingPopQuestV1';
+const S={mode:'title',map:null,px:0,py:0,ox:0,oy:0,dir:'d',walkT:0,stepFrame:0,
+  seen:{},chests:{},gateOpen:false,gateAnnounced:false,dawnTalked:{},visited:{},introDone:false,ended:false,sound:true,
+  time:0,bumpT:0};
+const keys={held:[]};
+let U=3;
+
+function fit(){
+  const wrap=$('wrap');
+  let u=Math.min(wrap.clientWidth/256,wrap.clientHeight/192);
+  u=Math.max(1,Math.floor(u*4)/4);
+  U=u;
+  document.documentElement.style.setProperty('--u',u+'px');
+  const st=$('stage');st.style.width=(256*u)+'px';st.style.height=(192*u)+'px';
+}
+window.addEventListener('resize',fit);
+
+/* ---------- save / load ---------- */
+function saveGame(){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({map:S.map.id,px:S.px,py:S.py,dir:S.dir,seen:S.seen,chests:S.chests,
+    gateOpen:S.gateOpen,gateAnnounced:S.gateAnnounced,dawnTalked:S.dawnTalked,visited:S.visited,introDone:S.introDone,ended:S.ended}));return true;}catch(e){return false;}
+}
+function loadSave(){try{const r=localStorage.getItem(SAVE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+
+/* ---------- helpers ---------- */
+const DIRV={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0]};
+const OPP={u:'d',d:'u',l:'r',r:'l'};
+function footprint(o,x,y){const w=o.w||1,h=o.h||1;return x>=o.x&&x<o.x+w&&y>=o.y&&y<o.y+h;}
+function tileCh(m,x,y){return m.t[y]&&m.t[y][x];}
+function npcs(m){return m.objs.filter(o=>o.k==='npc');}
+function isBlocked(m,x,y,self){
+  const ch=tileCh(m,x,y);
+  if(ch===undefined)return true;
+  if(SOLID_TILES.has(ch))return true;
+  if(ch==='G'&&!S.gateOpen)return true;
+  for(const o of m.objs){
+    if(o===self)continue;
+    if(o.k==='npc'){if(o.x===x&&o.y===y)return true;}
+    else if(o.solid&&footprint(o,x,y))return true;
+  }
+  if(self&&S.px===x&&S.py===y)return true;
+  return false;
+}
+function objAt(m,x,y){
+  for(const o of m.objs){if(o.k==='npc'?(o.x===x&&o.y===y):footprint(o,x,y))return o;}
+  return null;
+}
+function exhibitData(o){const w=WINGS.find(w=>w.id===o.wing);return w.ex[o.i];}
+function seenCount(wid){const w=WINGS.find(w=>w.id===wid);return w.ex.filter((_,i)=>S.seen[wid+':'+i]).length;}
+function totalSeen(){return Object.keys(S.seen).length;}
+function stampCount(){return Object.keys(S.chests).filter(k=>WINGS.some(w=>w.id===k)).length;}
+
+/* ---------- input ---------- */
+const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right',
+  Enter:'a',' ':'a',e:'a',E:'a',z:'a',Z:'a',Escape:'b',x:'b',X:'b',Backspace:'b',q:'b',Q:'b'};
+function dirOf(k){return {up:'u',down:'d',left:'l',right:'r'}[k];}
+function press(k){
+  AU.init();
+  if(k==='m'){AU.toggle();return;}
+  if(S.mode==='world'){
+    if(k==='a')interact();else if(k==='b')openMenu();
+    else if(dirOf(k)&&!keys.held.includes(k))keys.held.push(k);
+  }else if(S.mode==='say')sayPress();
+  else if(S.mode==='pick')pickPress(k);
+}
+function release(k){const i=keys.held.indexOf(k);if(i>=0)keys.held.splice(i,1);}
+window.addEventListener('keydown',e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==='m'||e.key==='M'){if(!e.repeat)press('m');return;}
+  const k=KEYMAP[e.key];if(!k)return;
+  e.preventDefault();
+  if(e.repeat&&!dirOf(k)&&!(S.mode==='pick'))return;
+  if(dirOf(k)&&S.mode==='world'){if(!keys.held.includes(k))keys.held.push(k);AU.init();}
+  else press(k);
+});
+window.addEventListener('keyup',e=>{const k=KEYMAP[e.key];if(k)release(k);});
+window.addEventListener('blur',()=>{keys.held.length=0;});
+document.querySelectorAll('.pb').forEach(b=>{
+  const k=b.dataset.k;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();press(k);});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>release(k)));
+});
+$('dialog').addEventListener('pointerdown',()=>{if(S.mode==='say')sayPress();});
+
+/* ---------- map handling ---------- */
+function npcInit(m){
+  m.objs.forEach(o=>{if(o.k==='npc'){o.hx=o.hx===undefined?o.x:o.hx;o.hy=o.hy===undefined?o.y:o.hy;o.ox=0;o.oy=0;o.wt=1+Math.random()*2;o.walkT=0;o.fr=0;}});
+}
+Object.values(MAPS).forEach(npcInit);
+
+function enterMap(id,x,y,d,announce){
+  S.map=MAPS[id];S.px=x;S.py=y;S.ox=0;S.oy=0;if(d)S.dir=d;keys.held.length=0;
+  S.visited[id]=1;
+  AU.music(S.map.music);
+  if(announce!==false)showLoc(S.map.name);
+  if(id==='lobby'&&S.gateOpen&&!S.gateAnnounced){S.gateAnnounced=true;setTimeout(()=>{toast('The Golden Gate is open!');AU.sfx('gate');},700);}
+  updateHud();
+}
+let locTimer=0;
+function showLoc(name){
+  const el=$('hudLoc');el.textContent=name;el.style.opacity=1;
+  clearTimeout(locTimer);locTimer=setTimeout(()=>{el.style.opacity=0;},2600);
+}
+function updateHud(){
+  const sc=stampCount();
+  const hs=$('hudStamps');
+  if(hs.children.length!==7){hs.innerHTML='';for(let i=0;i<7;i++){const s=document.createElement('span');s.className='stampDot';hs.appendChild(s);}}
+  [...hs.children].forEach((c,i)=>c.classList.toggle('on',i<sc));
+  $('hudSeen').textContent=totalSeen()+'/'+TOTAL_EX;
+}
+function hudVisible(v){$('hudLoc').hidden=!v;$('hudStats').hidden=!v;}
+let toastTimer=0;
+function toast(msg){
+  const t=$('toast');t.hidden=true;void t.offsetWidth;t.textContent=msg;t.hidden=false;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true;},2200);
+}
+function fadeTo(v){return new Promise(r=>{$('fade').style.opacity=v;setTimeout(r,380);});}
+async function warpTo(id,x,y,d){
+  S.mode='busy';keys.held.length=0;AU.sfx('warp');
+  await fadeTo(1);enterMap(id,x,y,d);saveGame();await new Promise(r=>setTimeout(r,120));await fadeTo(0);
+  S.mode='world';
+}
+function checkWarp(){
+  const m=S.map,k=S.px+','+S.py;
+  if(m.id==='lobby'&&S.py===1&&(S.px===11||S.px===12)&&S.gateOpen){warpTo('dawn',7,10,'u');return true;}
+  const w=m.warps&&m.warps[k];
+  if(w){warpTo(w.to,w.x,w.y,w.d);return true;}
+  return false;
+}
+
+/* ---------- update ---------- */
+function stepSpeed(){return 112;}
+function updatePlayer(dt){
+  const sp=stepSpeed()*dt;
+  if(S.ox||S.oy){
+    S.walkT+=dt;
+    const mv=v=>v>0?Math.max(0,v-sp):Math.min(0,v+sp);
+    S.ox=mv(S.ox);S.oy=mv(S.oy);
+    if(!S.ox&&!S.oy){AU.sfx('step');if(checkWarp())return;}
+  }
+  if(S.mode==='world'&&!S.ox&&!S.oy&&keys.held.length){
+    const k=keys.held[keys.held.length-1],d=dirOf(k),v=DIRV[d];
+    S.dir=d;
+    const nx=S.px+v[0],ny=S.py+v[1];
+    if(!isBlocked(S.map,nx,ny)){S.px=nx;S.py=ny;S.ox=-v[0]*16;S.oy=-v[1]*16;S.stepFrame^=1;}
+    else if(S.time-S.bumpT>.35){S.bumpT=S.time;AU.sfx('bump');}
+  }
+  if(!S.ox&&!S.oy&&!keys.held.length)S.walkT=0;
+}
+function updateNpcs(dt){
+  const m=S.map,sp=48*dt;
+  npcs(m).forEach(n=>{
+    if(n.ox||n.oy){
+      const mv=v=>v>0?Math.max(0,v-sp):Math.min(0,v+sp);
+      n.ox=mv(n.ox);n.oy=mv(n.oy);n.walkT+=dt;n.fr=((n.walkT*6)|0)&1;
+      return;
+    }
+    n.fr=0;
+    if(!n.wander||S.mode!=='world')return;
+    n.wt-=dt;
+    if(n.wt>0)return;
+    n.wt=1+Math.random()*2.5;
+    const d='udlr'[(Math.random()*4)|0],v=DIRV[d],nx=n.x+v[0],ny=n.y+v[1];
+    n.dir=d;
+    if(Math.abs(nx-n.hx)>3||Math.abs(ny-n.hy)>3)return;
+    const ch=tileCh(m,nx,ny);
+    if(ch==='D'||ch==='G'||ch==='_'&&false)return;
+    if(isBlocked(m,nx,ny,n)||(S.px===nx&&S.py===ny)||(S.ox||S.oy)&&false)return;
+    n.x=nx;n.y=ny;n.ox=-v[0]*16;n.oy=-v[1]*16;
+  });
+}
+
+/* ---------- render ---------- */
+const vignette=(()=>{const c=cv(256,192),g=c.getContext('2d');const gr=g.createRadialGradient(128,96,60,128,96,170);
+  gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,10,.55)');g.fillStyle=gr;g.fillRect(0,0,256,192);return c;})();
+let sparkles=[];
+function frontObj(){
+  if(S.mode!=='world'||S.ox||S.oy)return null;
+  const v=DIRV[S.dir];
+  return objAt(S.map,S.px+v[0],S.py+v[1]);
+}
+function drawObj(o,t){
+  const x=o.x*16,y=o.y*16;
+  if(o.k==='npc'){
+    const f=charFrames(NPCP[o.pal])[o.dir][o.fr||0];
+    vg.drawImage(f,Math.round(x+o.ox),Math.round(y+o.oy-3));return;
+  }
+  if(o.k==='chest'){
+    const open=!!S.chests[o.id],ready=!open&&o.wing&&seenCount(o.wing)>=5;
+    vg.drawImage(propCanvas('chest',open?'open':'closed'),x,y);
+    if(ready&&Math.random()<.12)sparkles.push({x:x+2+Math.random()*12,y:y+2+Math.random()*8,l:.7});
+    return;
+  }
+  if(o.k==='exhibit'){
+    const e=exhibitData(o);
+    if(o.kind==='painting')vg.drawImage(propCanvas('painting',e.pic),x,y);
+    else vg.drawImage(propCanvas('case',e.pic.o[0]),x,y);
+    if(S.seen[o.wing+':'+o.i]){vg.fillStyle='#ffd23f';vg.fillRect(x+12,y+1,3,3);vg.fillStyle='#fff';vg.fillRect(x+13,y+1,1,1);}
+    return;
+  }
+  if(o.kind==='icon'){vg.drawImage(SPR[o.a],x,y);return;}
+  if(o.kind==='fountain'){vg.drawImage(propCanvas('fountain','',((t*3)|0)&1),x,y);return;}
+  if(o.kind==='giant'){vg.drawImage(propCanvas('giant',o.a),x,y+(o.bob?Math.round(Math.sin(t*2.2)*1.2):0));return;}
+  vg.drawImage(propCanvas(o.kind,o.a,o.b),x,y);
+}
+function render(){
+  const m=S.map;if(!m)return;
+  const t=S.time,vw=256,vh=192,mw=m.w*16,mh=m.h*16;
+  let cx=Math.round(S.px*16+S.ox+8-vw/2),cy=Math.round(S.py*16+S.oy+8-vh/2);
+  cx=mw<=vw?-Math.round((vw-mw)/2):Math.max(0,Math.min(mw-vw,cx));
+  cy=mh<=vh?-Math.round((vh-mh)/2):Math.max(0,Math.min(mh-vh,cy));
+  vg.fillStyle='#000';vg.fillRect(0,0,vw,vh);
+  vg.save();vg.translate(-cx,-cy);
+  const wf=((t*2)|0)&1;
+  const x0=Math.max(0,(cx>>4)-0),x1=Math.min(m.w-1,((cx+vw)>>4)),y0=Math.max(0,cy>>4),y1=Math.min(m.h-1,((cy+vh)>>4));
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const ch=m.t[y][x];
+    vg.drawImage(tileCanvas(ch,m.theme,(x*3+y*5)&3,ch==='~'?wf:0,ch==='G'&&S.gateOpen?1:0),x*16,y*16);
+  }
+  const list=[];
+  m.objs.forEach(o=>{
+    const h=o.h||1;
+    list.push({o,z:(o.k==='exhibit'&&o.kind==='painting')?-1:(o.y+h)*16+(o.k==='npc'?o.oy:0)});
+  });
+  list.push({o:null,z:(S.py+1)*16+S.oy});
+  list.sort((a,b)=>a.z-b.z);
+  list.forEach(it=>{
+    if(it.o)drawObj(it.o,t);
+    else{
+      const f=charFrames(HERO)[S.dir][(S.ox||S.oy)?(S.stepFrame):0];
+      const bob=(S.ox||S.oy)?(Math.abs(Math.sin(S.walkT*14))>.5?-1:0):0;
+      vg.drawImage(f,Math.round(S.px*16+S.ox),Math.round(S.py*16+S.oy-3+bob));
+    }
+  });
+  // interaction marker
+  const fo=frontObj();
+  if(fo){
+    const bx=(fo.k==='npc'?fo.x*16:fo.x*16+((fo.w||1)*8)-8),by=fo.y*16-9+Math.round(Math.sin(t*6)*1.5);
+    vg.fillStyle='#000';vg.fillRect(bx+5,by,7,6);vg.fillStyle='#ffd23f';vg.fillRect(bx+6,by+1,5,4);
+    vg.fillStyle='#000';vg.fillRect(bx+8,by+2,1,2);
+  }
+  sparkles=sparkles.filter(s=>(s.l-=.016)>0);
+  sparkles.forEach(s=>{vg.fillStyle=s.l>.35?'#fff6b0':'#ffd23f';vg.fillRect(Math.round(s.x),Math.round(s.y-(0.7-s.l)*14),1,1);});
+  vg.restore();
+  if(m.id!=='grounds')vg.drawImage(vignette,0,0);
+}
+let lastT=0;
+function frame(now){
+  const dt=Math.min(.05,(now-lastT)/1000||0);lastT=now;S.time+=dt;
+  if(!$('title').hidden)drawStars(dt);
+  else if(S.map){updatePlayer(dt);updateNpcs(dt);render();}
+  requestAnimationFrame(frame);
+}
+/* ---------- title starfield ---------- */
+const starsC=$('stars'),sg=starsC.getContext('2d');
+const starList=Array.from({length:70},(_,i)=>({x:Math.random()*128,y:Math.random()*96,s:Math.random()*2+.3,p:Math.random()*6}));
+function drawStars(dt){
+  sg.fillStyle='#02030c';sg.fillRect(0,0,128,96);
+  const g=sg.createLinearGradient(0,40,0,96);g.addColorStop(0,'rgba(60,40,140,0)');g.addColorStop(1,'rgba(255,122,90,.35)');
+  sg.fillStyle=g;sg.fillRect(0,40,128,56);
+  starList.forEach(s=>{s.x-=s.s*dt*2;if(s.x<0){s.x=128;s.y=Math.random()*96;}
+    const a=.5+.5*Math.sin(S.time*2+s.p);sg.fillStyle=`rgba(255,${(220+a*35)|0},${(160+a*80)|0},${.4+a*.6})`;sg.fillRect(s.x|0,s.y|0,1,1);});
+  sg.fillStyle='#0a0f33';
+  for(let x=0;x<128;x+=1){const h=6+Math.sin(x*.21)*3+Math.sin(x*.07)*5;sg.fillRect(x,96-h,1,h);}
+
+}
+/* ===================== ENGINE UI: dialogue, menus, interactions, title ===================== */
+function paginate(text,max){
+  max=max||150;const out=[];
+  String(text).split('\n').forEach(par=>{
+    const words=par.split(/\s+/);let cur='';
+    words.forEach(w=>{if((cur+' '+w).trim().length>max&&cur){out.push(cur);cur=w;}else cur=(cur?cur+' ':'')+w;});
+    if(cur)out.push(cur);
+  });
+  return out;
+}
+/* ---------- say ---------- */
+let SAY=null,lastBlip=0;
+function say(name,pages,opts){
+  opts=opts||{};
+  if(typeof pages==='string')pages=paginate(pages);
+  const prev=S.mode;
+  return new Promise(res=>{
+    S.mode='say';hudVisible(false);
+    $('dName').textContent=name||'';$('dialog').hidden=false;
+    SAY={pages:pages.slice(),i:-1,typing:false,full:'',pos:0,res:()=>{ $('dialog').hidden=true;SAY=null;S.mode=opts.keepMode||prev==='busy'?'busy':'world';if(S.mode==='world')hudVisible(true);res();},dim:opts.dim};
+    sayNext();
+  });
+}
+function sayNext(){
+  const s=SAY;if(!s)return;
+  s.i++;
+  if(s.i>=s.pages.length){s.res();return;}
+  s.full=s.pages[s.i];s.pos=0;s.typing=true;$('dMore').style.visibility='hidden';
+  const dim=/^Source:/.test(s.full);
+  $('dText').className=dim?'dim':'';
+  $('dText').textContent='';
+  if(s.i>0)AU.sfx('page');
+  const tick=()=>{
+    if(!SAY||SAY!==s||!s.typing)return;
+    s.pos+=1;$('dText').textContent=s.full.slice(0,s.pos);
+    if(S.time-lastBlip>.07){lastBlip=S.time;AU.sfx('blip');}
+    if(s.pos>=s.full.length){s.typing=false;$('dMore').style.visibility='visible';return;}
+    setTimeout(tick,/[.,!?:]/.test(s.full[s.pos-1])?90:24);
+  };
+  tick();
+}
+function sayPress(){
+  const s=SAY;if(!s)return;
+  if(s.typing){s.typing=false;s.pos=s.full.length;$('dText').textContent=s.full;$('dMore').style.visibility='visible';}
+  else sayNext();
+}
+
+/* ---------- pick (menus) ---------- */
+let PICK=null;
+function pick(head,items,o){
+  o=o||{};
+  return new Promise(res=>{
+    const prevMode=S.mode;
+    const el=o.el||$('list');
+    PICK={items,sel:o.sel||0,el,head,cancel:o.cancel!==false,prevMode,res:v=>{PICK=null;if(!o.el){el.hidden=true;}S.mode=o.keepMode||(prevMode==='title'?'title':prevMode==='pick'?'pick':'say'===prevMode?'say':prevMode);res(v);},opts:o};
+    if(!o.el){el.className='win '+(o.cls||'choice');el.hidden=false;}
+    if(prevMode==='world'){hudVisible(false);}
+    S.mode='pick';
+    renderPick();
+  });
+}
+function renderPick(){
+  const p=PICK;if(!p)return;
+  p.el.innerHTML='';
+  if(p.head){const h=document.createElement('div');h.className='head';h.textContent=p.head;p.el.appendChild(h);}
+  p.items.forEach((it,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='opt'+(i===p.sel?' sel':'')+(it.off?' off':'');
+    b.textContent=it.label||it;
+    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();AU.init();if(PICK===p){p.sel=i;renderPick();pickPress('a');}});
+    p.el.appendChild(b);
+  });
+}
+function pickPress(k){
+  const p=PICK;if(!p)return;
+  if(k==='up'||k==='down'){
+    const n=p.items.length;p.sel=(p.sel+(k==='down'?1:n-1))%n;AU.sfx('select');renderPick();
+  }else if(k==='a'){AU.sfx('confirm');p.res(p.sel);}
+  else if(k==='b'&&p.cancel){AU.sfx('cancel');p.res(-1);}
+}
+async function choose(name,pages,items,o){
+  // show a dialogue line and a choice list on top of it
+  const prev=S.mode;S.mode='busy';
+  $('dName').textContent=name||'';$('dText').className='';$('dText').textContent=pages;$('dMore').style.visibility='hidden';$('dialog').hidden=false;hudVisible(false);
+  const v=await pick(null,items,Object.assign({cls:'choice',keepMode:'busy'},o||{}));
+  $('dialog').hidden=true;
+  S.mode='world';
+  return v;
+}
+
+/* ---------- exhibits ---------- */
+function showPic(rec){const c=$('pic').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,80,48);c.drawImage(makePicture(rec),0,0);$('picWin').hidden=false;}
+async function viewExhibit(wid,i){
+  const w=WINGS.find(x=>x.id===wid),e=w.ex[i],key=wid+':'+i,first=!S.seen[key];
+  AU.sfx('exhibit');
+  showPic(e.pic);
+  const pages=paginate(e.body);
+  pages.push('Source: '+(e.src?e.src+'  ·  ':'')+'Curated by '+e.by);
+  await say(e.t,pages,{keepMode:false});
+  $('picWin').hidden=true;
+  if(first){
+    S.seen[key]=1;updateHud();AU.sfx('stamp');
+    const n=seenCount(wid);
+    if(n>=5){toast('Chest unlocked!');AU.sfx('unlock');}
+    else toast('Exhibit logged '+n+'/5');
+    saveGame();
+  }
+}
+
+/* ---------- curators, guide, etc ---------- */
+const PROP_TEXT={
+  bench:"A comfy bench. You sit for a moment, then stand right back up.",
+  plant:"A well-watered plant. The leaves look freshly polished.",
+  statue:"A statue of a figure holding a phone up high. The plaque is too worn to read.",
+  lamp:"A warm lamp, glowing against the dark.",
+  fountain:"The fountain sparkles. You toss in a coin and make a wish about passing this course.",
+  pillar:"A polished marble pillar, cool to the touch.",
+  banner:"A banner bearing the museum crest.",
+  giant:"A towering pixel sculpture on a pedestal. It stands for this wing's theme.",
+};
+async function talkGuide(n){
+  const first=!S.met_guide;S.met_guide=true;
+  if(first)await say('Guide',["Welcome to Tracing the Pop! I look after the grounds.","Walk through the big doors, visit the seven wings, read the exhibits, and open each wing's chest to collect a stamp."]);
+  for(;;){
+    const v=await choose('Guide','What would you like to know about the museum?',[{label:'Purpose'},{label:'Audience'},{label:'Context'},{label:'Where do I go?'},{label:'Bye'}]);
+    if(v<0||v===4){await say('Guide','Enjoy your visit!');return;}
+    if(v===3){await say('Guide',["Head up the steps to the great doors. Inside the lobby you'll find seven doors, one for each wing.","Collect all seven stamps and the Golden Gate in the lobby will open."]);continue;}
+    const g=GUIDE_NOTES[v];await say('Guide · '+g.label,g.pages.flatMap(p=>paginate(p)));
+  }
+}
+function nextWing(){return WINGS.find(w=>!S.chests[w.id]);}
+async function talkAttendant(){
+  for(;;){
+    const v=await choose('Attendant','Welcome to the lobby. How can I help?',[{label:'How do I play?'},{label:'How am I doing?'},{label:'Hint'},{label:'Bye'}]);
+    if(v<0||v===3){await say('Attendant','Enjoy the museum!');return;}
+    if(v===0)await say('Attendant',["Move with the arrow keys or WASD. Press Enter, Space or E to talk and read.","Esc opens your menu: journal, stamp card, sound and save. Press M to mute the music."]);
+    if(v===1)await say('Attendant',`You've read ${totalSeen()} of ${TOTAL_EX} exhibits and collected ${stampCount()} of 7 stamps.`+(S.gateOpen?' The Golden Gate is open!':''));
+    if(v===2){const w=nextWing();await say('Attendant',w?`Try the ${w.name} wing. Its chest is still locked. Read ${5-seenCount(w.id)} more exhibit${5-seenCount(w.id)===1?'':'s'} there.`:'You have every stamp! Go through the Golden Gate at the top of the lobby.');}
+  }
+}
+async function talkCurator(n){
+  const w=WINGS.find(x=>x.id===n.wing);
+  if(!n.met){n.met=true;await say(w.name+' Curator',[`Welcome to the ${w.name} wing!`,'Five exhibits are on display here: three on the walls and two in the glass cases. Read them all and my chest will open.']);}
+  for(;;){
+    const items=[{label:'Progress'}];
+    if(w.essay)items.push({label:'Wing essay'});
+    if(w.timeline)items.push({label:'Timeline'});
+    if(S.chests[w.id])items.push({label:'Takeaway'});
+    items.push({label:'Goodbye'});
+    const v=await choose(w.name+' Curator','What can I tell you?',items);
+    if(v<0||v===items.length-1){await say(w.name+' Curator','Come again!');return;}
+    const lab=items[v].label;
+    if(lab==='Progress'){
+      const un=w.ex.map((e,i)=>S.seen[w.id+':'+i]?null:e.t).filter(Boolean);
+      if(!un.length)await say(w.name+' Curator',S.chests[w.id]?"You've seen it all, and the stamp is yours.":"You've read every exhibit! Open my chest.");
+      else await say(w.name+' Curator',[`You've read ${5-un.length} of 5.`,'Still to see: '+un.join(', ')+'.']);
+    }
+    if(lab==='Wing essay')await say(w.name+' · Essay',paginate(w.essay));
+    if(lab==='Timeline'){const t=w.timeline;await say(w.name+' · Timeline',[`Before 2000: ${t[0]}`,`2000–2010: ${t[1]}`,`After 2010: ${t[2]}`]);}
+    if(lab==='Takeaway')await say(w.name+' · Takeaway',paginate(w.takeaway));
+  }
+}
+async function talkDawn(n){
+  const L=DAWN_LINES.find(l=>l.who===n.who);
+  await say(n.who,L.pages.flatMap(p=>paginate(p)));
+  const first=!S.dawnTalked[n.who];S.dawnTalked[n.who]=1;
+  if(first)saveGame();
+  if(Object.keys(S.dawnTalked).length>=5&&!S.ended){S.ended=true;saveGame();await ending();}
+}
+async function ending(){
+  AU.sfx('fanfare');
+  await say('',["The five curators gather beneath the star and speak as one.","“The 2000s were the Digital Dawn Era: the bridge between analog culture and the interactive one we live in now.”"]);
+  toast('★ You traced the Pop! ★');
+  await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/7`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza.","Thank you for visiting. Feel free to keep exploring."]);
+}
+async function openChest(o){
+  if(o.id==='secret'){
+    if(S.chests.secret){await say('',"The chest is empty now.");return;}
+    S.chests.secret=1;AU.sfx('chest');await say('',paginate(o.msg));toast('Secret found!');saveGame();return;
+  }
+  const w=WINGS.find(x=>x.id===o.wing);
+  if(S.chests[w.id]){await say('',"The chest is empty. Your stamp is safe in the journal.");return;}
+  const n=seenCount(w.id);
+  if(n<5){AU.sfx('locked');await say('',`The chest is locked tight. Read all five exhibits in this wing to open it. (${n}/5)`);return;}
+  S.chests[w.id]=1;updateHud();AU.sfx('chest');
+  await say('',`The chest creaks open. Inside is a stamp and a scroll of the ${w.name} takeaway.`);
+  toast('★ Stamp earned: '+w.short);AU.sfx('fanfare');
+  await say(w.name+' · Takeaway',paginate(w.takeaway));
+  if(stampCount()>=7&&!S.gateOpen){S.gateOpen=true;S.gateAnnounced=false;AU.sfx('gate');await say('',"Seven stamps! Far away in the lobby, something golden rumbles open…");}
+  saveGame();
+}
+async function interact(){
+  if(S.mode!=='world'||S.ox||S.oy)return;
+  const v=DIRV[S.dir],tx=S.px+v[0],ty=S.py+v[1],m=S.map;
+  const o=objAt(m,tx,ty);
+  keys.held.length=0;
+  if(o){
+    if(o.k==='npc'){
+      o.dir=OPP[S.dir];
+      if(o.role==='guide')await talkGuide(o);
+      else if(o.role==='attendant')await talkAttendant(o);
+      else if(o.role==='curator')await talkCurator(o);
+      else if(o.role==='dawn')await talkDawn(o);
+      else await say(o.name,o.lines[(Math.random()*o.lines.length)|0]);
+      return;
+    }
+    if(o.k==='exhibit'){await viewExhibit(o.wing,o.i);return;}
+    if(o.k==='chest'){await openChest(o);return;}
+    if(o.k==='sign'){await say('Sign',paginate(o.text));return;}
+    if(o.kind==='icon'){await say('',`This door leads to the ${o.label} wing.`);return;}
+    if(o.kind==='fountain')AU.sfx('stamp');
+    await say('',PROP_TEXT[o.kind]||'Nothing special.');
+    return;
+  }
+  if(tileCh(m,tx,ty)==='G'&&!S.gateOpen){
+    AU.sfx('locked');
+    await say('',[`A gleaming golden gate, sealed with seven locks. (${stampCount()}/7 stamps)`,'Open each wing\'s chest to earn a stamp.']);
+  }
+}
+
+/* ---------- pause menu ---------- */
+async function openMenu(){
+  if(S.mode!=='world')return;
+  keys.held.length=0;AU.sfx('confirm');
+  for(;;){
+    const v=await pick('Menu',[{label:'Journal'},{label:'Stamp card'},{label:'Sound: '+(AU.on?'On':'Off')},{label:'Save'},{label:'Close'}],{cls:'menu',keepMode:'busy'});
+    if(v<0||v===4)break;
+    if(v===0)await journal();
+    if(v===1)await stampCard();
+    if(v===2){AU.toggle();}
+    if(v===3){toast(saveGame()?'Game saved':'Could not save');}
+  }
+  S.mode='world';hudVisible(true);
+}
+async function stampCard(){
+  const items=WINGS.map(w=>({label:(S.chests[w.id]?'★ ':'☆ ')+w.name,off:!S.chests[w.id]}));
+  items.push({label:'Golden Gate: '+(S.gateOpen?'OPEN':'sealed'),off:!S.gateOpen});
+  await pick('Stamp card  '+stampCount()+'/7',items,{cls:'center',keepMode:'busy'});
+}
+async function journal(){
+  for(;;){
+    const items=WINGS.map(w=>({label:`${w.name}  ${seenCount(w.id)}/5`,off:!S.visited[w.id]}));
+    const v=await pick('Journal  '+totalSeen()+'/'+TOTAL_EX,items,{cls:'center',keepMode:'busy'});
+    if(v<0)return;
+    const w=WINGS[v];
+    for(;;){
+      const ex=w.ex.map((e,i)=>({label:S.seen[w.id+':'+i]?'✓ '+e.t:'? ? ?',off:!S.seen[w.id+':'+i]}));
+      const j=await pick(w.name,ex,{cls:'center',keepMode:'busy'});
+      if(j<0)break;
+      if(S.seen[w.id+':'+j]){
+        const keep=S.mode;await viewJournal(w.id,j);S.mode='busy';
+      }
+    }
+  }
+}
+async function viewJournal(wid,i){
+  const w=WINGS.find(x=>x.id===wid),e=w.ex[i];
+  showPic(e.pic);$('list').hidden=true;
+  const pages=paginate(e.body);pages.push('Source: '+(e.src?e.src+'  ·  ':'')+'Curated by '+e.by);
+  await say(e.t,pages,{keepMode:true});
+  $('picWin').hidden=true;S.mode='busy';
+}
+
+/* ---------- title & start ---------- */
+async function titleScreen(){
+  S.mode='title';$('title').hidden=false;hudVisible(false);
+  const has=!!loadSave();
+  for(;;){
+    const items=[{label:'New Quest'}];if(has)items.push({label:'Continue'});items.push({label:'Sound: '+(AU.on?'On':'Off')});
+    const v=await pick(null,items,{el:$('titleMenu'),cancel:false,keepMode:'title'});
+    const lab=items[v].label;
+    if(lab.startsWith('Sound')){AU.toggle();continue;}
+    return lab;
+  }
+}
+async function startGame(mode){
+  AU.init();
+  await fadeTo(1);
+  $('title').hidden=true;
+  const sv=mode==='Continue'?loadSave():null;
+  if(sv){
+    S.seen=sv.seen||{};S.chests=sv.chests||{};S.gateOpen=!!sv.gateOpen;S.gateAnnounced=!!sv.gateAnnounced;
+    S.dawnTalked=sv.dawnTalked||{};S.visited=sv.visited||{};S.introDone=!!sv.introDone;S.ended=!!sv.ended;
+    const m=MAPS[sv.map]?sv.map:'grounds';
+    enterMap(m,sv.px,sv.py,sv.dir);
+  }else{
+    const g=MAPS.grounds;enterMap('grounds',g.start.x,g.start.y,g.start.d);
+  }
+  S.mode='busy';hudVisible(true);updateHud();
+  await fadeTo(0);
+  if(!S.introDone){
+    S.introDone=true;
+    await say('Guide',["Welcome, traveler, to the Tracing the Pop museum!","Inside, seven wings hold a decade of Philippine popular culture, 2000 to 2010. Walk up to anything and press Enter, Space or E.","Find me by the steps if you want the museum's story. Good luck!"],{keepMode:true});
+    S.mode='world';hudVisible(true);saveGame();
+  }else S.mode='world';
+}
+(async function init(){
+  fit();
+  requestAnimationFrame(frame);
+  for(;;){
+    const mode=await titleScreen();
+    await startGame(mode);
+    return;
+  }
+})();
+</script>
+</html>
