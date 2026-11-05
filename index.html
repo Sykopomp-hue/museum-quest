@@ -231,7 +231,44 @@ const DAWN_LINES = [
   { who:"William", pages:["Many patterns that started in the 2000s, like texting culture, reality TV participation, and media-driven self-image, are still present today but have evolved with social media and smartphones."] },
   { who:"Mendoza", pages:["The 2000-2010 period served as the bridge between analog culture and the digital, interactive culture we have now."] }
 ];
+
+/* ===================== NEW WINGS: Present (2020s) and Future (2030s) ===================== */
+WINGS.push(
+ { id:"present", name:"Present Day, 2020s", short:"Present", icon:"phone2", theme:"present", music:"present",
+   tl:["2000–2010","Today (2020s)","2030s"],
+   timeline:["Shared TV time and SMS","Personal feeds, apps and algorithms","Projection: AI-shaped media"],
+   essay:"Worksheet 2 compared the 2000–2010 decade with today. The need to connect stayed the same; only the tools changed. Unli-text promos and comshops (Ragnarok, Friendster, Multiply) became TikTok, Discord and algorithm-driven short video. Teleseryes and Pinoy Big Brother gave families shared kilig, awa and gigil, while Netflix, YouTube and TikTok now let people watch and listen on demand. Celebrities, magazines and pageants once set the look, and Instagram, YouTube, TikTok, K-pop idols and influencers now set trends worldwide.",
+   takeaway:"The 2020s kept the 2000s' need to connect, feel and express ourselves, but moved it from shared, broadcast experiences to personal, platform-based ones. The sources and the speed changed; pop culture still shapes emotions, memories, self-expression and beauty ideals.",
+   ex:[
+    { t:"Short Video Takes Over", by:"Kaye", src:"Milestone 2, Worksheet 2.1", pic:{bg:"neon",o:["phone2","note"]},
+      body:"TikTok, Discord and algorithm-driven vertical video now dominate social media. Where the 2000s had Friendster, Multiply and comshops, the 2020s put a personal feed in every pocket." },
+    { t:"Watching On Demand", by:"Yza", src:"Milestone 2, Worksheet 2.2", pic:{bg:"neon",o:["laptop","heart"]},
+      body:"Netflix, YouTube and TikTok let people watch and listen whenever they want. Media still shapes emotions and memories, but the experience is now personal instead of collective." },
+    { t:"Idols and Influencers Set the Look", by:"Kirsten", src:"Milestone 2, Worksheet 2.3", pic:{bg:"dusk",o:["lightstick","camera"]},
+      body:"Instagram, YouTube and TikTok, K-pop idols and influencers now set trends worldwide. In the 2000s, celebrities, magazines and pageants set the look. The sources and speed changed; the pull of the look did not." },
+    { t:"E-Wallets and Mobile Banking", by:"William", src:"Milestone 2 comparison table", pic:{bg:"day",o:["wallet","phone2"]},
+      body:"Digital wallets and mobile banking apps let people pay, send money and complete transactions using smartphones. In the 2000s, people mostly used cash for everyday purchases and paid bills through bank websites." },
+    { t:"P-pop and Online Games", by:"Mendoza", src:"Milestone 2 comparison table", pic:{bg:"night",o:["mic","pc"]},
+      body:"SB19 and BINI became global P-pop leaders with huge fanbases, and online platforms like Roblox and Mobile Legends let people connect through voice chat and friends lists, a bigger version of the internet cafe scene." } ] },
+ { id:"future", name:"Future Wing, 2030s", short:"Future", icon:"robot", theme:"future", music:"future",
+   tl:["2000–2010","2020s","2030s (projection)"],
+   timeline:["Texting and comshops","Apps, feeds and creators","AI companions and immersive media"],
+   essay:"This wing is a set of projections, not facts. Group 3 extended the patterns from our Milestone 2 comparison table: AI tools already appear in remote work and freelancing, media is already personalized by algorithms, and cashless payments are already common. Our guess for the 2030s is that these trends deepen, while Filipino creators, climate pressure and city life shape how they look here.",
+   takeaway:"We can't predict the 2030s, but the pattern holds: each decade changes the tools while people keep the same needs to connect, feel and be seen. The question for the future is who controls the tools, and what it costs to keep a shared Filipino culture.",
+   ex:[
+    { t:"AI Helpers at Work and School", by:"Kaye", src:"Group 3 projection", pic:{bg:"chrome",o:["chip","robot"]},
+      body:"Projection: AI tools already show up in remote work and freelancing. By the 2030s, AI assistants may handle everyday tasks in BPO, school and creative work, raising new questions about jobs and originality." },
+    { t:"Immersive Feeds", by:"Yza", src:"Group 3 projection", pic:{bg:"neon",o:["vr","heart"]},
+      body:"Projection: if on-demand streaming made media personal, VR and AR could make it immersive. Concerts, teleserye scenes and shopping might be experienced from home, with feelings shared across headsets instead of across one TV." },
+    { t:"Smart, Green Cities", by:"Kirsten", src:"Group 3 projection", pic:{bg:"chrome",o:["evcar","solar"]},
+      body:"Projection: heavy traffic on EDSA and stronger typhoons are already part of life. The 2030s may bring more electric vehicles, solar power and climate-ready design in Philippine cities." },
+    { t:"Drone Delivery and Cashless Life", by:"William", src:"Group 3 projection", pic:{bg:"day",o:["drone","wallet"]},
+      body:"Projection: e-wallets already replace cash for many. Delivery by drone and app-based services could make everyday errands faster, especially for islands and hard-to-reach barangays." },
+    { t:"Pinoy Culture on a Global Stage", by:"Mendoza", src:"Group 3 projection", pic:{bg:"chrome",o:["rocket","star"]},
+      body:"Projection: from Charice to SB19 and BINI, Filipino talent already reaches the world online. The next step may be Filipino creators and games shaping global culture, while keeping our own identity." } ] }
+);
 const TOTAL_EX = WINGS.reduce((n,w)=>n+w.ex.length,0);
+const NW = WINGS.length;
 /* ===================== PIXEL ART: palette, 16x16 object sprites, exhibit pictures ===================== */
 const PAL={k:'#1b1b2f',w:'#f4f8ff',g:'#aab4c8',G:'#5b6478',r:'#e14c5a',R:'#9a2a3a',o:'#f0913a',y:'#ffd23f',Y:'#c9962a',
   l:'#5bbf5a',L:'#2e7d46',b:'#3b82e0',B:'#1f3f8f',c:'#4fd6e8',p:'#ff7aa8',P:'#7a4bd0',n:'#8a5a30',N:'#5a3a1f',s:'#f2c49b',
@@ -330,6 +367,32 @@ const SPR={
   r(5,2,1,9,'w');r(11,3,1,8,'w');r(5,2,7,2,'w');r(3,10,3,3,'w');r(9,10,3,3,'w');px(3,10,'g');px(9,10,'g');}),
  pin:mkSprite(({r,px,disc})=>{
   disc(8,6,5,'r');r(6,10,4,2,'r');r(7,12,2,2,'r');disc(8,6,2,'w');px(5,4,'p');px(5,5,'p');}),
+ phone2:mkSprite(({r,px})=>{
+  r(4,0,8,16,'G');r(5,1,6,13,'k');r(5,2,6,11,'P');r(5,2,6,4,'p');r(6,3,4,1,'w');r(6,5,2,1,'w');
+  r(6,7,4,2,'c');r(6,10,4,1,'y');px(9,4,'r');r(7,14,2,1,'g');}),
+ laptop:mkSprite(({r,px})=>{
+  r(2,2,12,8,'g');r(3,3,10,6,'k');r(4,4,8,4,'r');r(7,5,1,2,'w');px(8,5,'w');px(8,6,'w');r(1,10,14,2,'G');r(0,12,16,1,'g');r(6,10,4,1,'k');}),
+ lightstick:mkSprite(({r,px,disc})=>{
+  r(7,8,2,7,'g');disc(8,5,4,'P');disc(8,5,3,'p');disc(8,5,1.6,'w');r(6,9,4,1,'y');px(7,14,'G');}),
+ wallet:mkSprite(({r,px})=>{
+  r(2,4,12,9,'b');r(2,4,12,2,'B');r(10,7,4,4,'y');px(11,9,'k');r(3,3,7,1,'w');r(3,12,10,1,'B');px(4,6,'c');px(5,7,'w');}),
+ robot:mkSprite(({r,px})=>{
+  r(7,0,2,2,'g');px(7,0,'r');r(4,2,8,6,'g');r(5,4,2,2,'c');r(9,4,2,2,'c');r(6,7,4,1,'G');
+  r(3,8,10,6,'G');r(7,10,2,2,'c');r(1,9,2,4,'g');r(13,9,2,4,'g');r(5,14,2,1,'g');r(9,14,2,1,'g');px(5,3,'w');}),
+ drone:mkSprite(({r,px})=>{
+  r(5,5,6,3,'G');r(7,4,2,1,'c');r(1,5,4,1,'g');r(11,5,4,1,'g');r(0,4,4,1,'w');r(12,4,4,1,'w');
+  r(6,9,4,4,'n');r(6,9,4,1,'N');r(7,8,2,1,'G');px(7,10,'y');}),
+ vr:mkSprite(({r,px})=>{
+  r(1,5,14,6,'G');r(2,6,12,4,'k');r(3,7,4,2,'c');r(9,7,4,2,'c');r(0,6,1,4,'g');r(15,6,1,4,'g');r(7,6,2,4,'G');px(3,7,'w');px(9,7,'w');r(1,4,14,1,'g');}),
+ chip:mkSprite(({r,px})=>{
+  r(4,4,8,8,'d');r(5,5,6,6,'T');r(7,7,2,2,'y');
+  for(let i=0;i<3;i++){r(3,5+i*2,1,1,'g');r(12,5+i*2,1,1,'g');r(5+i*2,3,1,1,'g');r(5+i*2,12,1,1,'g');}px(5,5,'w');}),
+ solar:mkSprite(({r,px})=>{
+  r(1,5,14,7,'B');r(2,6,12,5,'b');r(5,6,1,5,'B');r(9,6,1,5,'B');r(2,8,12,1,'B');px(3,6,'w');px(4,7,'w');r(7,12,2,3,'G');r(5,15,6,1,'G');px(13,2,'y');px(12,3,'y');px(14,3,'y');px(13,3,'y');}),
+ evcar:mkSprite(({r,px,disc})=>{
+  r(1,8,14,4,'T');r(4,5,8,3,'T');r(5,6,3,2,'c');r(9,6,2,2,'c');r(1,8,14,1,'c');disc(4,12,2,'k');disc(12,12,2,'k');px(4,12,'g');px(12,12,'g');px(8,9,'y');px(9,10,'y');r(14,9,1,2,'y');}),
+ rocket:mkSprite(({r,px,disc})=>{
+  r(6,2,4,9,'w');r(7,0,2,2,'r');r(6,2,4,1,'r');disc(8,6,1.4,'c');r(4,8,2,4,'r');r(10,8,2,4,'r');r(6,11,4,1,'g');r(7,12,2,3,'o');r(7,12,2,1,'y');px(6,3,'g');}),
  sun:mkSprite(({r,px,disc})=>{
   disc(8,8,4,'y');r(7,1,2,2,'y');r(7,13,2,2,'y');r(1,7,2,2,'y');r(13,7,2,2,'y');px(3,3,'y');px(12,3,'y');px(3,12,'y');px(12,12,'y');px(7,7,'w');})
 };
@@ -341,6 +404,40 @@ const BG={
   dusk:{bands:['#1a1a4a','#3a2a6a','#7a3a7a','#c0507a','#f07a5a','#ffb060'],ground:'#3a2a52',dark:'#2a1e3e',sun:'#ffd070'},
   night:{bands:['#05061a','#0a0f33','#10184a','#18246a','#1f2f7a','#26398a'],ground:'#14204a',dark:'#0c1434',stars:true,moon:true}
 };
+BG.neon={bands:['#12053a','#2a0a5e','#5a1a8a','#a02a9a','#e0409a','#ff7aa8'],ground:'#2a0f4a',dark:'#1a0838',stars:true};
+BG.chrome={bands:['#0a1a2a','#10304a','#1a5a7a','#2a8aaa','#5ac8d8','#c8f4f0'],ground:'#16304a',dark:'#0e2236',sun:'#e8ffff'};
+
+/* ---- 2x detail pass: EPX smoothing + edge light/shade, keeps the pixel look ---- */
+const bigCache={};
+function bigSprite(k){
+  if(bigCache[k])return bigCache[k];
+  const src=SPR[k].getContext('2d').getImageData(0,0,16,16).data;
+  const P=(x,y)=>{if(x<0||y<0||x>15||y>15)return 0;const i=(y*16+x)*4;return src[i+3]<128?0:(src[i]<<16|src[i+1]<<8|src[i+2])+1;};
+  const c=cv(32,32),g=c.getContext('2d'),out=new Array(32*32).fill(0);
+  for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+    const p=P(x,y),a=P(x,y-1),b=P(x+1,y),cc=P(x-1,y),d=P(x,y+1);
+    let o1=p,o2=p,o3=p,o4=p;
+    if(p){ if(cc===a&&cc!==d&&a!==b&&a)o1=a; if(a===b&&a!==cc&&b!==d&&b)o2=b; if(d===cc&&d!==b&&cc!==a&&cc)o3=cc; if(b===d&&b!==a&&d!==cc&&d)o4=d; }
+    out[(y*2)*32+x*2]=o1;out[(y*2)*32+x*2+1]=o2;out[(y*2+1)*32+x*2]=o3;out[(y*2+1)*32+x*2+1]=o4;
+  }
+  const OL=(0x1b<<16|0x1b<<8|0x2f)+1;
+  const adj=(v,d)=>{v-=1;let r=(v>>16&255)+d,gg=(v>>8&255)+d,bb=(v&255)+d;r=Math.max(0,Math.min(255,r));gg=Math.max(0,Math.min(255,gg));bb=Math.max(0,Math.min(255,bb));return `rgb(${r},${gg},${bb})`;};
+  for(let y=0;y<32;y++)for(let x=0;x<32;x++){
+    const v=out[y*32+x];if(!v)continue;
+    let col;
+    if(v===OL)col='#1b1b2f';
+    else{
+      const up=y>0?out[(y-1)*32+x]:0,dn=y<31?out[(y+1)*32+x]:0,lf=x>0?out[y*32+x-1]:0;
+      let d=0;
+      if(!up||up===OL)d+=34; else if(y>1&&(!out[(y-2)*32+x]||out[(y-2)*32+x]===OL))d+=14;
+      if(!dn||dn===OL)d-=36; else if(y<30&&(!out[(y+2)*32+x]||out[(y+2)*32+x]===OL))d-=14;
+      if(!lf||lf===OL)d+=10;
+      col=adj(v,d);
+    }
+    g.fillStyle=col;g.fillRect(x,y,1,1);
+  }
+  return bigCache[k]=c;
+}
 const picCache={};
 function makePicture(rec){
   const key=rec.bg+rec.o.join(',');
@@ -354,9 +451,12 @@ function makePicture(rec){
   if(b.sun){g.fillStyle=b.sun;g.fillRect(34,28,12,8);g.fillRect(36,26,8,2);}
   if(b.clouds){g.fillStyle='#ffffff';[[8,6,16],[50,10,18],[28,16,12]].forEach(([x,y,w])=>{g.fillRect(x,y,w,3);g.fillRect(x+3,y-2,w-8,2);});}
   g.fillStyle=b.ground;g.fillRect(0,36,80,12);g.fillStyle=b.dark;for(let x=0;x<80;x+=4)g.fillRect(x,38+(x/4%3),2,1);g.fillRect(0,36,80,1);
+  // soft spotlight behind the subjects
+  const gl=g.createRadialGradient(40,24,2,40,24,44);gl.addColorStop(0,'rgba(255,255,255,.22)');gl.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gl;g.fillRect(2,2,76,44);
   [[8,rec.o[0]],[40,rec.o[1]]].forEach(([x,k])=>{
-    g.fillStyle='rgba(0,0,0,.28)';g.fillRect(x+4,38,24,3);
-    g.drawImage(SPR[k],0,0,16,16,x,6,32,32);});
+    g.fillStyle='rgba(0,0,0,.32)';g.fillRect(x+3,38,26,2);g.fillRect(x+6,40,20,1);
+    g.save();g.globalAlpha=.16;g.translate(0,76);g.scale(1,-1);g.drawImage(bigSprite(k),x,6+0);g.restore();
+    g.drawImage(bigSprite(k),x,6);});
   g.fillStyle='#1b1b2f';g.fillRect(0,0,80,2);g.fillRect(0,46,80,2);g.fillRect(0,0,2,48);g.fillRect(78,0,2,48);
   g.fillStyle='#e8b33d';g.fillRect(1,1,78,1);g.fillRect(1,46,78,1);g.fillRect(1,1,1,46);g.fillRect(78,1,1,46);
   return picCache[key]=c;
@@ -372,6 +472,8 @@ const THEMES={
   technology:{ft:'circuit',f1:'#0f1c42',f2:'#13265a',wall:'#0c1634',wallD:'#08102a',trim:'#4fd6e8',car:'#1d4fa8',edge:'#4fd6e8'},
   globalization:{ft:'checker',f1:'#e6f0fa',f2:'#cfe0f2',wall:'#1f5aa8',wallD:'#17448a',trim:'#ffd23f',car:'#2e8a5a',edge:'#ffd23f'},
   lobby:{ft:'checker',f1:'#f2ead6',f2:'#e0d4b4',wall:'#14257a',wallD:'#0e1a5c',trim:'#e8b33d',car:'#a82a3a',edge:'#ffd23f'},
+  present:{ft:'checker',f1:'#ffe0f0',f2:'#ffc0e0',wall:'#6a1a7a',wallD:'#4e1260',trim:'#4fd6e8',car:'#b02a8a',edge:'#4fd6e8'},
+  future:{ft:'circuit',f1:'#140a30',f2:'#1e1048',wall:'#1a0f3a',wallD:'#100826',trim:'#a070ff',car:'#5a2ad0',edge:'#c9a6ff'},
   dawn:{ft:'stars',f1:'#1a1040',f2:'#241658',wall:'#0f0a30',wallD:'#0a0622',trim:'#ffd23f',car:'#e8b33d',edge:'#fff0b0'}
 };
 const SOLID_TILES=new Set(['T','b','~','R','M','Q','N','v','w','x']);
@@ -488,6 +590,8 @@ const NPCP={
   cur_time:{hair:'#cfd6e4',skin:'#e8b58a',top:'#7a4bd0',acc:'#e8b33d',bot:'#38225e',hat:'#e8b33d'},
   cur_technology:{hair:'#13265a',skin:'#f2c49b',top:'#1d4fa8',acc:'#4fd6e8',bot:'#08102a',hat:'#4fd6e8',spike:0},
   cur_globalization:{hair:'#3a2a1a',skin:'#d9a070',top:'#2e8a5a',acc:'#ffd23f',bot:'#17448a',hat:'#ffd23f'},
+  cur_present:{hair:'#1b1b2f',skin:'#f2c49b',top:'#b02a8a',acc:'#4fd6e8',bot:'#4e1260',hat:'#4fd6e8',long:1},
+  cur_future:{hair:'#c9a6ff',skin:'#e8b58a',top:'#5a2ad0',acc:'#c9a6ff',bot:'#100826',hat:'#a070ff',spike:1},
   Kaye:{hair:'#2a1a1a',skin:'#f2c49b',top:'#e14c82',acc:'#ffd23f',bot:'#7a4bd0',long:1,hat:'#ffd23f'},
   Yza:{hair:'#3a2a1a',skin:'#e8b58a',top:'#4fd6e8',acc:'#f4f8ff',bot:'#1f3f8f',long:1},
   Kirsten:{hair:'#1b1b2f',skin:'#f2c49b',top:'#5bbf5a',acc:'#ffd23f',bot:'#2e7d46',long:1,hat:'#f4f8ff'},
@@ -538,7 +642,8 @@ const LOBBY_DOORS={
   affect:{x:3,y:1,sx:3,sy:2,d:'d'}, body:{x:7,y:1,sx:7,sy:2,d:'d'},
   performance:{x:16,y:1,sx:16,sy:2,d:'d'}, space:{x:20,y:1,sx:20,sy:2,d:'d'},
   time:{x:0,y:6,sx:1,sy:6,d:'r'}, globalization:{x:0,y:10,sx:1,sy:10,d:'r'},
-  technology:{x:23,y:8,sx:22,sy:8,d:'l'}
+  technology:{x:23,y:8,sx:22,sy:8,d:'l'},
+  present:{x:23,y:5,sx:22,sy:5,d:'l'}, future:{x:23,y:11,sx:22,sy:11,d:'l'}
 };
 
 const VISITOR_LINES={
@@ -548,6 +653,8 @@ const VISITOR_LINES={
   space:["Malls were the place to hang out. Aircon and free window shopping!","Internet cafés smelled like instant noodles and victory."],
   time:["Time moves differently when the loading bar is a dial-up tone.","Some things stay; some fade like old cassette tapes."],
   technology:["Unli-text promos changed everything. 'Pass it on' chain messages, anyone?","I kept my phone's keypad so worn out the numbers vanished."],
+  present:["Everything I watch now is picked by an algorithm. I miss the one shared TV!","I paid for my merienda with my phone. No coins at all."],
+  future:["Will robots write my school essays in the 2030s? Please say no.","This room is a guess, not a fact. Group 3 made it up from today's trends!"],
   globalization:["K-pop and anime came through TV and bootleg DVDs, then everywhere.","The world felt both closer and louder."]
 };
 
@@ -570,7 +677,7 @@ function buildGrounds(){
    {k:'prop',kind:'bench',x:11,y:13,solid:1},{k:'prop',kind:'bench',x:18,y:13,solid:1},
    {k:'prop',kind:'lamp',x:10,y:7,solid:1},{k:'prop',kind:'lamp',x:19,y:7,solid:1},
    {k:'prop',kind:'lamp',x:10,y:13,solid:1},{k:'prop',kind:'lamp',x:19,y:13,solid:1},
-   {k:'sign',kind:'sign',x:12,y:6,solid:1,text:"TRACING THE POP\nA Review of a Decade in PH Popular Culture, 2000–2010.\nThe museum doors are straight ahead. Seven wings, five exhibits each, and a Golden Gate waiting at the end."},
+   {k:'sign',kind:'sign',x:12,y:6,solid:1,text:"TRACING THE POP\nA Review of a Decade in PH Popular Culture, 2000–2010.\nThe museum doors are straight ahead. Nine wings, five exhibits each, and a Golden Gate waiting at the end."},
    {k:'chest',id:'secret',x:27,y:17,msg:"You found the Curators' Note!\nThank you for exploring. This museum was built by Group 3: Kaye, Yza, Kirsten, William, and Mendoza.",solid:1},
    {k:'npc',id:'guide',role:'guide',name:'Guide',pal:'guide',x:16,y:6,dir:'l'},
    {k:'npc',id:'g_kid',name:'Kid',pal:'kid',x:8,y:14,dir:'d',wander:1,lines:["My ate used to beep me from the next room just to say hi! Beeping was the cheapest text.","Teacher says this museum is from 2000 to 2010. I was a baby, I think!"]},
@@ -607,7 +714,7 @@ function buildLobby(){
   objs.push({k:'prop',kind:'banner',a:'#c8344f',x:9,y:1,solid:1});
   objs.push({k:'prop',kind:'banner',a:'#c8344f',x:14,y:1,solid:1});
   objs.push({k:'npc',id:'attendant',role:'attendant',name:'Attendant',pal:'student',x:9,y:12,dir:'r'});
-  objs.push({k:'npc',id:'l_rock',name:'Visitor',pal:'rocker',x:4,y:8,dir:'d',wander:1,lines:["Seven wings! I'm starting with Performance. Reality TV stuff.","Collect all seven stamps and the Golden Gate opens, I heard."]});
+  objs.push({k:'npc',id:'l_rock',name:'Visitor',pal:'rocker',x:4,y:8,dir:'d',wander:1,lines:["Nine wings! I'm starting with Performance. Reality TV stuff.","Collect all nine stamps and the Golden Gate opens, I heard."]});
   objs.push({k:'npc',id:'l_lady',name:'Visitor',pal:'lady',x:18,y:9,dir:'l',wander:1,lines:["Each curator keeps a treasure chest. Read all five exhibits in a wing and it opens!","The chest gives you a stamp. Magic!"]});
   return {id:'lobby',name:'Grand Lobby',w:W,h:H,theme:'lobby',music:'lobby',t,objs,warps,gate:{x:[11,12],y:1}};
 }
@@ -668,6 +775,8 @@ const MUSIC={
   time:{root:49,scale:[0,2,3,5,7,8,10],bpm:70,lead:'sine',bass:'triangle',dens:.5,prog:[0,5,3,6]},
   technology:{root:57,scale:[0,3,5,7,10],bpm:134,lead:'square',bass:'sawtooth',dens:.95,prog:[0,3,0,4],arp:1},
   globalization:{root:62,scale:[0,2,4,6,7,9,11],bpm:106,lead:'triangle',bass:'triangle',dens:.75,prog:[0,4,1,3]},
+  present:{root:62,scale:[0,2,4,7,9],bpm:122,lead:'square',bass:'triangle',dens:.88,prog:[0,3,4,5]},
+  future:{root:55,scale:[0,2,4,6,7,9,11],bpm:96,lead:'sine',bass:'sawtooth',dens:.62,prog:[0,4,2,5],arp:1},
   dawn:{root:60,scale:[0,2,4,6,7,9,11],bpm:76,lead:'sine',bass:'triangle',dens:.5,prog:[0,3,4,0],arp:1}
 };
 const AU=(()=>{
@@ -872,7 +981,7 @@ function showLoc(name){
 function updateHud(){
   const sc=stampCount();
   const hs=$('hudStamps');
-  if(hs.children.length!==7){hs.innerHTML='';for(let i=0;i<7;i++){const s=document.createElement('span');s.className='stampDot';hs.appendChild(s);}}
+  if(hs.children.length!==NW){hs.innerHTML='';for(let i=0;i<NW;i++){const s=document.createElement('span');s.className='stampDot';hs.appendChild(s);}}
   [...hs.children].forEach((c,i)=>c.classList.toggle('on',i<sc));
   $('hudSeen').textContent=totalSeen()+'/'+TOTAL_EX;
 }
@@ -1153,11 +1262,11 @@ const PROP_TEXT={
 };
 async function talkGuide(n){
   const first=!S.met_guide;S.met_guide=true;
-  if(first)await say('Guide',["Welcome to Tracing the Pop! I look after the grounds.","Walk through the big doors, visit the seven wings, read the exhibits, and open each wing's chest to collect a stamp."]);
+  if(first)await say('Guide',["Welcome to Tracing the Pop! I look after the grounds.","Walk through the big doors, visit the nine wings, read the exhibits, and open each wing's chest to collect a stamp."]);
   for(;;){
     const v=await choose('Guide','What would you like to know about the museum?',[{label:'Purpose'},{label:'Audience'},{label:'Context'},{label:'Where do I go?'},{label:'Bye'}]);
     if(v<0||v===4){await say('Guide','Enjoy your visit!');return;}
-    if(v===3){await say('Guide',["Head up the steps to the great doors. Inside the lobby you'll find seven doors, one for each wing.","Collect all seven stamps and the Golden Gate in the lobby will open."]);continue;}
+    if(v===3){await say('Guide',["Head up the steps to the great doors. Inside the lobby you'll find nine doors, one for each wing.","Collect all nine stamps and the Golden Gate in the lobby will open."]);continue;}
     const g=GUIDE_NOTES[v];await say('Guide · '+g.label,g.pages.flatMap(p=>paginate(p)));
   }
 }
@@ -1189,7 +1298,7 @@ async function talkCurator(n){
       else await say(w.name+' Curator',[`You've read ${5-un.length} of 5.`,'Still to see: '+un.join(', ')+'.']);
     }
     if(lab==='Wing essay')await say(w.name+' · Essay',paginate(w.essay));
-    if(lab==='Timeline'){const t=w.timeline;await say(w.name+' · Timeline',[`Before 2000: ${t[0]}`,`2000–2010: ${t[1]}`,`After 2010: ${t[2]}`]);}
+    if(lab==='Timeline'){const t=w.timeline,L=w.tl||['Before 2000','2000–2010','After 2010'];await say(w.name+' · Timeline',[`${L[0]}: ${t[0]}`,`${L[1]}: ${t[1]}`,`${L[2]}: ${t[2]}`]);}
     if(lab==='Takeaway')await say(w.name+' · Takeaway',paginate(w.takeaway));
   }
 }
@@ -1204,7 +1313,7 @@ async function ending(){
   AU.sfx('fanfare');
   await say('',["The five curators gather beneath the star and speak as one.","“The 2000s were the Digital Dawn Era: the bridge between analog culture and the interactive one we live in now.”"]);
   toast('★ You traced the Pop! ★');
-  await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/7`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza.","Thank you for visiting. Feel free to keep exploring."]);
+  await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/${NW}`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza.","Thank you for visiting. Feel free to keep exploring."]);
 }
 async function openChest(o){
   if(o.id==='secret'){
@@ -1219,7 +1328,7 @@ async function openChest(o){
   await say('',`The chest creaks open. Inside is a stamp and a scroll of the ${w.name} takeaway.`);
   toast('★ Stamp earned: '+w.short);AU.sfx('fanfare');
   await say(w.name+' · Takeaway',paginate(w.takeaway));
-  if(stampCount()>=7&&!S.gateOpen){S.gateOpen=true;S.gateAnnounced=false;AU.sfx('gate');await say('',"Seven stamps! Far away in the lobby, something golden rumbles open…");}
+  if(stampCount()>=NW&&!S.gateOpen){S.gateOpen=true;S.gateAnnounced=false;AU.sfx('gate');await say('',"Nine stamps! Far away in the lobby, something golden rumbles open…");}
   saveGame();
 }
 async function interact(){
@@ -1247,7 +1356,7 @@ async function interact(){
   }
   if(tileCh(m,tx,ty)==='G'&&!S.gateOpen){
     AU.sfx('locked');
-    await say('',[`A gleaming golden gate, sealed with seven locks. (${stampCount()}/7 stamps)`,'Open each wing\'s chest to earn a stamp.']);
+    await say('',[`A gleaming golden gate, sealed with nine locks. (${stampCount()}/${NW} stamps)`,'Open each wing\'s chest to earn a stamp.']);
   }
 }
 
@@ -1268,7 +1377,7 @@ async function openMenu(){
 async function stampCard(){
   const items=WINGS.map(w=>({label:(S.chests[w.id]?'★ ':'☆ ')+w.name,off:!S.chests[w.id]}));
   items.push({label:'Golden Gate: '+(S.gateOpen?'OPEN':'sealed'),off:!S.gateOpen});
-  await pick('Stamp card  '+stampCount()+'/7',items,{cls:'center',keepMode:'busy'});
+  await pick('Stamp card  '+stampCount()+'/'+NW,items,{cls:'center',keepMode:'busy'});
 }
 async function journal(){
   for(;;){
@@ -1323,7 +1432,7 @@ async function startGame(mode){
   await fadeTo(0);
   if(!S.introDone){
     S.introDone=true;
-    await say('Guide',["Welcome, traveler, to the Tracing the Pop museum!","Inside, seven wings hold a decade of Philippine popular culture, 2000 to 2010. Walk up to anything and press Enter, Space or E.","Find me by the steps if you want the museum's story. Good luck!"],{keepMode:true});
+    await say('Guide',["Welcome, traveler, to the Tracing the Pop museum!","Inside, nine wings hold a decade of Philippine popular culture, 2000 to 2010, then today, and a guess at the 2030s. Walk up to anything and press Enter, Space or E.","Find me by the steps if you want the museum's story. Good luck!"],{keepMode:true});
     S.mode='world';hudVisible(true);saveGame();
   }else S.mode='world';
 }
