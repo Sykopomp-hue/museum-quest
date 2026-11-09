@@ -920,7 +920,7 @@ const $=id=>document.getElementById(id);
 const view=$('view'),vg=view.getContext('2d');vg.imageSmoothingEnabled=false;
 const SAVE_KEY='tracingPopQuestV1';
 const S={mode:'title',map:null,px:0,py:0,ox:0,oy:0,dir:'d',walkT:0,stepFrame:0,
-  seen:{},chests:{},gateOpen:false,gateAnnounced:false,dawnTalked:{},visited:{},introDone:false,ended:false,sound:true,
+  seen:{},chests:{},gateOpen:false,gateAnnounced:false,dawnTalked:{},quiz:{},visited:{},introDone:false,ended:false,sound:true,
   time:0,bumpT:0};
 const keys={held:[]};
 let U=3;
@@ -937,7 +937,7 @@ window.addEventListener('resize',fit);
 
 /* ---------- save / load ---------- */
 function saveGame(){
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify({map:S.map.id,px:S.px,py:S.py,dir:S.dir,seen:S.seen,chests:S.chests,
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({map:S.map.id,px:S.px,py:S.py,dir:S.dir,seen:S.seen,chests:S.chests,quiz:S.quiz,
     gateOpen:S.gateOpen,gateAnnounced:S.gateAnnounced,dawnTalked:S.dawnTalked,visited:S.visited,introDone:S.introDone,ended:S.ended}));return true;}catch(e){return false;}
 }
 function loadSave(){try{const r=localStorage.getItem(SAVE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
@@ -1129,6 +1129,7 @@ function render(){
   let cx=Math.round(S.px*16+S.ox+8-vw/2),cy=Math.round(S.py*16+S.oy+8-vh/2);
   cx=mw<=vw?-Math.round((vw-mw)/2):Math.max(0,Math.min(mw-vw,cx));
   cy=mh<=vh?-Math.round((vh-mh)/2):Math.max(0,Math.min(mh-vh,cy));
+  CAMX=cx;CAMY=cy;
   vg.fillStyle='#000';vg.fillRect(0,0,vw,vh);
   vg.save();vg.translate(-cx,-cy);
   const wf=((t*2)|0)&1;
@@ -1162,6 +1163,7 @@ function render(){
   sparkles=sparkles.filter(s=>(s.l-=.016)>0);
   sparkles.forEach(s=>{vg.fillStyle=s.l>.35?'#fff6b0':'#ffd23f';vg.fillRect(Math.round(s.x),Math.round(s.y-(0.7-s.l)*14),1,1);});
   vg.restore();
+  drawAmbient(m,t);
   if(m.id!=='grounds')vg.drawImage(vignette,0,0);
 }
 let lastT=0;
@@ -1331,6 +1333,7 @@ async function talkCurator(n){
     if(w.essay)items.push({label:'Wing essay'});
     if(w.timeline)items.push({label:'Timeline'});
     if(S.chests[w.id])items.push({label:'Takeaway'});
+    if(seenCount(w.id)>=2)items.push({label:'Pop Quiz'});
     items.push({label:'Goodbye'});
     const v=await choose(w.name+' Curator','What can I tell you?',items);
     if(v<0||v===items.length-1){await say(w.name+' Curator','Come again!');return;}
@@ -1342,6 +1345,7 @@ async function talkCurator(n){
     }
     if(lab==='Wing essay')await say(w.name+' · Essay',paginate(w.essay));
     if(lab==='Timeline'){const t=w.timeline,L=w.tl||['Before 2000','2000–2010','After 2010'];await say(w.name+' · Timeline',[`${L[0]}: ${t[0]}`,`${L[1]}: ${t[1]}`,`${L[2]}: ${t[2]}`]);}
+    if(lab==='Pop Quiz')await popQuiz(w);
     if(lab==='Takeaway')await say(w.name+' · Takeaway',paginate(w.takeaway));
   }
 }
@@ -1358,7 +1362,7 @@ async function ending(){
   toast('★ You traced the Pop! ★');
   let show=null;
   try{show=await celebrate();}catch(e){show=null;}
-  await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/${NW}`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza, Raphael Garcia.","Thank you for visiting. Feel free to keep exploring."]);
+  await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/${NW}`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza, Raphael Garcia.","Every era is built on the last. The texts, shows and songs of the 2000s still shape how we connect today. Thank you for tracing the pop with us.","Feel free to keep exploring."]);
   if(show)show.end();
   AU.music('dawn');S.mode='world';hudVisible(true);
 }
@@ -1424,6 +1428,7 @@ async function openMenu(){
 async function stampCard(){
   const items=WINGS.map(w=>({label:(S.chests[w.id]?'★ ':'☆ ')+w.name,off:!S.chests[w.id]}));
   items.push({label:'Golden Gate: '+(S.gateOpen?'OPEN':'sealed'),off:!S.gateOpen});
+  items.push({label:'Quiz stars: '+Object.values(S.quiz).filter(v=>v>=3).length+'/'+NW,off:false});
   await pick('Stamp card  '+stampCount()+'/'+NW,items,{cls:'center',keepMode:'busy'});
 }
 async function journal(){
@@ -1468,7 +1473,7 @@ async function startGame(mode){
   $('title').hidden=true;
   const sv=mode==='Continue'?loadSave():null;
   if(sv){
-    S.seen=sv.seen||{};S.chests=sv.chests||{};S.gateOpen=!!sv.gateOpen;S.gateAnnounced=!!sv.gateAnnounced;
+    S.seen=sv.seen||{};S.chests=sv.chests||{};S.quiz=sv.quiz||{};S.gateOpen=!!sv.gateOpen;S.gateAnnounced=!!sv.gateAnnounced;
     S.dawnTalked=sv.dawnTalked||{};S.visited=sv.visited||{};S.introDone=!!sv.introDone;S.ended=!!sv.ended;
     const m=MAPS[sv.map]?sv.map:'grounds';
     enterMap(m,sv.px,sv.py,sv.dir);
@@ -1494,15 +1499,16 @@ async function startGame(mode){
 })();
 /* ===================== ENDING: pixel "through the years" cutscene + fireworks ===================== */
 const CINE_SLIDES=[
-  {y:2000,cap:'A new decade, a new world',pic:{bg:'dawn',o:['clock','globe']}},
-  {y:2001,cap:'Text brigades fill EDSA',pic:{bg:'day',o:['phone','chat']}},
-  {y:2005,cap:'Pinoy Big Brother goes live',pic:{bg:'night',o:['tv','star']}},
-  {y:2006,cap:'Mall of Asia opens',pic:{bg:'dusk',o:['mall','pin']}},
-  {y:2007,cap:'A teen goes viral online',pic:{bg:'dawn',o:['camera','mic']}},
-  {y:2010,cap:'The first automated election',pic:{bg:'day',o:['glove','trophy']}},
-  {y:2026,cap:'TikTok, GCash and P-pop',pic:{bg:'neon',o:['phone2','lightstick']}},
-  {y:2030,cap:'What will you build next?',pic:{bg:'chrome',o:['robot','rocket']}}
+  {y:2000,cap:'A new decade, a new world',msg:'The 2000s began with Y2K worries, dial-up dreams and a country eager to connect.',pic:{bg:'dawn',o:['clock','globe']}},
+  {y:2001,cap:'Text brigades fill EDSA',msg:'One message, "Go 2 EDSA", moved a nation. Ordinary people found their voice could travel.',pic:{bg:'day',o:['phone','chat']}},
+  {y:2005,cap:'Pinoy Big Brother goes live',msg:'Reality TV made private feelings public. Whole families watched, voted and cried together.',pic:{bg:'night',o:['tv','star']}},
+  {y:2006,cap:'Mall of Asia opens',msg:'Malls became our plazas: a place to gather, to perform and to belong.',pic:{bg:'dusk',o:['mall','pin']}},
+  {y:2007,cap:'A teen goes viral online',msg:'A teenager from the Philippines sang and the world heard. Talent no longer needed a gatekeeper.',pic:{bg:'dawn',o:['camera','mic']}},
+  {y:2010,cap:'The first automated election',msg:'Technology reached the ballot box. The People Power spirit now had new tools.',pic:{bg:'day',o:['glove','trophy']}},
+  {y:2026,cap:'TikTok, GCash and P-pop',msg:'The past never left. Texts became posts, and local fandoms became global ones.',pic:{bg:'neon',o:['phone2','lightstick']}},
+  {y:2030,cap:'What will you build next?',msg:'Culture is made by everyone who shares, remembers and creates. You are part of this story.',pic:{bg:'chrome',o:['robot','rocket']}}
 ];
+function cineWrap(s,n){const w=s.split(' '),L=[];let c='';w.forEach(x=>{if((c+' '+x).trim().length>n){L.push(c);c=x;}else c=(c+' '+x).trim();});if(c)L.push(c);return L;}
 function cineWait(ms){
   return new Promise(res=>{
     let done=false;
@@ -1528,28 +1534,35 @@ async function cutscene(c,g){
   let prevY=1999;
   AU.music('time');
   for(let i=0;i<CINE_SLIDES.length;i++){
-    const s=CINE_SLIDES[i],img=makePicture(s.pic);
-    const T0=performance.now(),IN=900,HOLD=2000,OUT=550;
-    let skip=false;const w=cineWait(IN+HOLD+OUT).then(()=>{skip=true;});
+    const s=CINE_SLIDES[i],img=makePicture(s.pic),lines=cineWrap(s.msg,30);
+    const T0=performance.now(),IN=900,HOLD=5200,OUT=500,full=lines.join('\n');
+    let skip=false;cineWait(IN+HOLD+OUT).then(()=>{skip=true;});
     if(i>0)AU.sfx('page');
+    let lastN=0;
     while(!skip){
       const t=performance.now()-T0;
       if(t>IN+HOLD+OUT)break;
       g.fillStyle='#05060f';g.fillRect(0,0,256,192);
-      // pixel dissolve in / out
+      for(let k=0;k<40;k++){g.fillStyle=(k*37+i)%5===0?'#3a4080':'#1d2150';g.fillRect((k*53+i*17)%256,(k*29)%190,1,1);}
       let block=1;
-      if(t<IN){const k=t/IN;block=[48,24,12,6,3,2,1][Math.min(6,Math.floor(k*7))];}
-      else if(t>IN+HOLD){const k=(t-IN-HOLD)/OUT;block=[2,3,6,12,24,48][Math.min(5,Math.floor(k*6))];}
-      cinePix(g,img,8,26,240,144,block);
-      // year counter rolls up from the previous slide
+      if(t<IN){const k=t/IN;block=[32,16,8,4,2,1.5,1][Math.min(6,Math.floor(k*7))];}
+      else if(t>IN+HOLD){const k=(t-IN-HOLD)/OUT;block=[2,4,8,16,32,48][Math.min(5,Math.floor(k*6))];}
+      g.fillStyle='#e8b33d';g.fillRect(45,23,166,102);g.fillStyle='#05060f';g.fillRect(47,25,162,98);
+      cinePix(g,img,48,26,160,96,block);
       const k=Math.min(1,t/IN),e=1-Math.pow(1-k,3);
       const yr=Math.round(prevY+(s.y-prevY)*e);
-      cineText(g,String(yr),128,5,16,'#ffd23f');
-      const capA=t<IN?Math.max(0,(t-IN*.5)/(IN*.5)):(t>IN+HOLD?1-(t-IN-HOLD)/OUT:1);
-      g.globalAlpha=Math.max(0,Math.min(1,capA));
-      cineText(g,s.cap,128,177,8,'#f4f8ff');
+      cineText(g,String(yr),128,5,14,'#ffd23f');
+      const capA=Math.max(0,Math.min(1,t<IN?(t-IN*.4)/(IN*.6):(t>IN+HOLD?1-(t-IN-HOLD)/OUT:1)));
+      g.globalAlpha=capA;
+      cineText(g,s.cap,128,130,8,'#ffd23f');
+      // typewriter message
+      const n=Math.max(0,Math.floor((t-IN*.7)/34));
+      if(n!==lastN&&n<=full.length&&n%3===0&&full[n-1]!==' '&&full[n-1]!=='\n')AU.sfx('blip');
+      lastN=n;
+      let used=0;
+      lines.forEach((ln,li)=>{const take=Math.max(0,Math.min(ln.length,n-used));used+=ln.length+1;if(take>0)cineText(g,ln.slice(0,take),128,145+li*11,8,'#f4f8ff');});
       g.globalAlpha=1;
-      cineText(g,'Enter: skip',252,184,6,'#5b6478','right');
+      cineText(g,'Enter: skip',252,6,6,'#5b6478','right');
       await cineFrame();
     }
     prevY=s.y;
@@ -1658,5 +1671,45 @@ async function devMenu(){
   let taps=0,tt=0;const el=document.getElementById('hudLoc');
   if(el)el.addEventListener('pointerdown',()=>{const n=performance.now();taps=n-tt>3000?1:taps+1;tt=n;if(taps>=5){taps=0;devMenu();}});
 })();
+
+/* ===================== AMBIENT: dust motes, footstep puffs, day/night on the grounds ===================== */
+let CAMX=0,CAMY=0,_lp='',dust=[];
+const MOTES=Array.from({length:26},()=>({x:Math.random()*256,y:Math.random()*192,s:.5+Math.random()*1.5,p:Math.random()*6}));
+const TOD=[[0,255,160,130,.16],[.12,255,205,170,.05],[.28,0,0,0,0],[.6,0,0,0,0],[.72,255,120,70,.2],[.84,25,35,100,.32],[.96,25,35,100,.3],[1,255,160,130,.16]];
+function todColor(ph){for(let i=1;i<TOD.length;i++){if(ph<=TOD[i][0]){const a=TOD[i-1],b=TOD[i],k=(ph-a[0])/(b[0]-a[0]);return a.slice(1).map((v,j)=>v+(b[j+1]-v)*k);}}return TOD[0].slice(1);}
+function drawAmbient(m,t){
+  const key=S.px+','+S.py;
+  if(key!==_lp){_lp=key;for(let i=0;i<3;i++)dust.push({x:S.px*16+8+(Math.random()*6-3),y:S.py*16+14,vx:Math.random()*8-4,vy:-4-Math.random()*6,l:.5});}
+  dust=dust.filter(d=>(d.l-=.016)>0);
+  dust.forEach(d=>{d.x+=d.vx*.016;d.y+=d.vy*.016;vg.globalAlpha=Math.min(1,d.l*2)*.7;vg.fillStyle=m.id==='grounds'?'#e8e0b8':'#cfd6ff';vg.fillRect(Math.round(d.x-CAMX),Math.round(d.y-CAMY),2,2);});
+  vg.globalAlpha=1;
+  if(m.id==='grounds'){
+    const c=todColor((.3+S.time/180)%1);
+    if(c[3]>.005){vg.fillStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${c[3]})`;vg.fillRect(0,0,256,192);}
+    if(c[3]>.2&&c[0]<60){vg.fillStyle='#fff';for(let i=0;i<14;i++)if(Math.sin(t*2+i*7)>0)vg.fillRect((i*53)%256,(i*31)%60,1,1);}
+  }else{
+    MOTES.forEach(o=>{const x=(o.x+Math.sin(t*.4+o.p)*10+t*o.s*3)%256,y=(o.y-t*o.s*2+192*4)%192;vg.globalAlpha=.18+.22*Math.sin(t*1.5+o.p);vg.fillStyle=m.theme==='dawn'?'#ffe9a8':'#ffffff';vg.fillRect(x|0,y|0,1,1);});
+    vg.globalAlpha=1;
+  }
+}
+
+async function popQuiz(w){
+  const seen=w.ex.filter((_,i)=>S.seen[w.id+':'+i]);
+  if(seen.length<2){await say(w.name+' Curator','Read at least two exhibits first.');return;}
+  const qs=seen.slice().sort(()=>Math.random()-.5).slice(0,3);
+  let score=0;
+  await say(w.name+' Curator',"Pop Quiz time! I'll read a clue. Pick the exhibit it belongs to.");
+  for(let qi=0;qi<qs.length;qi++){
+    const q=qs[qi];
+    const ss=q.body.split(/(?<=[.!?])\s/);let clue=(ss[1]&&ss[1].length>40?ss[1]:ss[0]).replace(/^[“"]+|[”"]+$/g,'');if(clue.length>115)clue=clue.slice(0,112).trim()+'…';
+    const opts=[q.t,...w.ex.filter(e=>e!==q).map(e=>e.t).sort(()=>Math.random()-.5).slice(0,3)].sort(()=>Math.random()-.5);
+    const v=await choose('Quiz '+(qi+1)+'/'+qs.length,'“'+clue+'”',opts.map(l=>({label:l})));
+    if(v>=0&&opts[v]===q.t){score++;AU.sfx('stamp');await say(w.name+' Curator','Correct!');}
+    else{AU.sfx('cancel');await say(w.name+' Curator','Not quite. It was “'+q.t+'”.');}
+  }
+  const best=Math.max(S.quiz[w.id]||0,score);S.quiz[w.id]=best;saveGame();
+  if(score===qs.length&&qs.length>=3){AU.sfx('unlock');toast('★ Quiz star earned! ★');await say(w.name+' Curator','Perfect score! You really know this wing.');}
+  else await say(w.name+' Curator',`You got ${score} of ${qs.length}. Perfect score earns a quiz star.`);
+}
 </script>
 </html>
