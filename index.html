@@ -45,6 +45,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--px);overfl
 .opt.off{color:#6a78b8;}
 #toast{left:50%;top:34%;transform:translate(-50%,0);text-align:center;color:var(--gold);padding:calc(var(--u)*4) calc(var(--u)*9);animation:pop .35s cubic-bezier(.3,1.6,.5,1);white-space:nowrap;}
 @keyframes pop{from{transform:translate(-50%,10px) scale(.6);opacity:0;}to{transform:translate(-50%,0) scale(1);opacity:1;}}
+#cine{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#05060f;}#cine[hidden]{display:none;}
 #fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s linear;}
 #title{position:absolute;inset:0;background:#02030c;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:calc(var(--u)*3);}
 #title[hidden]{display:none;}
@@ -76,6 +77,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--px);overfl
   <div id="wrap">
     <div id="stage">
       <canvas id="view" width="256" height="192"></canvas>
+      <canvas id="cine" width="256" height="192" hidden></canvas>
       <div id="hudLoc" class="win" hidden></div>
       <div id="hudStats" class="win" hidden><span id="hudStamps"></span><span id="hudSeen"></span></div>
       <div id="picWin" class="win" hidden><canvas id="pic" width="80" height="48"></canvas></div>
@@ -906,6 +908,8 @@ const AU=(()=>{
     chest(t){[392,494,587,784,988].forEach((f,i)=>tone(sfxBus,f,t+i*.09,.2,'square',.1));},
     locked(t){tone(sfxBus,150,t,.09,'square',.12);tone(sfxBus,130,t+.1,.12,'square',.12);},
     fanfare(t){[[523,.0,.12],[523,.14,.12],[523,.28,.12],[523,.42,.3],[415,.76,.3],[466,1.08,.3],[523,1.4,.12],[466,1.55,.1],[523,1.67,.5]].forEach(([f,o,d])=>{tone(sfxBus,f,t+o,d,'square',.12);tone(sfxBus,f/2,t+o,d,'triangle',.14);});},
+    launch(t){tone(sfxBus,260,t,.45,'sawtooth',.04,1400);},
+    boom(t){noise(sfxBus,t,.55,.16,250);tone(sfxBus,95,t,.3,'square',.1,40);for(let i=1;i<4;i++)noise(sfxBus,t+.12*i,.05,.05,5000);},
     gate(t){noise(sfxBus,t,.8,.16,200);tone(sfxBus,80,t,.9,'sawtooth',.1,300);[392,523,659,784,1047].forEach((f,i)=>tone(sfxBus,f,t+.5+i*.1,.5,'triangle',.12));}
   };
   A.sfx=function(n){if(!ctx||!A.on)return;const f=SFX[n];if(f)try{f(ctx.currentTime+.005);}catch(e){}};
@@ -1352,7 +1356,11 @@ async function ending(){
   AU.sfx('fanfare');
   await say('',["The five curators gather beneath the star and speak as one.","“The 2000s were the Digital Dawn Era: the bridge between analog culture and the interactive one we live in now.”"]);
   toast('★ You traced the Pop! ★');
+  let show=null;
+  try{show=await celebrate();}catch(e){show=null;}
   await say('Credits',[`Exhibits read: ${totalSeen()}/${TOTAL_EX}  ·  Stamps: ${stampCount()}/${NW}`,"Tracing the Pop: A Review of a Decade in PH Popular Culture, 2000–2010.\nMO-HUM080 · Group 3 · Kaye, Yza, Kirsten, William, Mendoza, Raphael Garcia.","Thank you for visiting. Feel free to keep exploring."]);
+  if(show)show.end();
+  AU.music('dawn');S.mode='world';hudVisible(true);
 }
 async function openChest(o){
   if(o.id==='secret'){
@@ -1484,5 +1492,141 @@ async function startGame(mode){
     return;
   }
 })();
+/* ===================== ENDING: pixel "through the years" cutscene + fireworks ===================== */
+const CINE_SLIDES=[
+  {y:2000,cap:'A new decade, a new world',pic:{bg:'dawn',o:['clock','globe']}},
+  {y:2001,cap:'Text brigades fill EDSA',pic:{bg:'day',o:['phone','chat']}},
+  {y:2005,cap:'Pinoy Big Brother goes live',pic:{bg:'night',o:['tv','star']}},
+  {y:2006,cap:'Mall of Asia opens',pic:{bg:'dusk',o:['mall','pin']}},
+  {y:2007,cap:'A teen goes viral online',pic:{bg:'dawn',o:['camera','mic']}},
+  {y:2010,cap:'The first automated election',pic:{bg:'day',o:['glove','trophy']}},
+  {y:2026,cap:'TikTok, GCash and P-pop',pic:{bg:'neon',o:['phone2','lightstick']}},
+  {y:2030,cap:'What will you build next?',pic:{bg:'chrome',o:['robot','rocket']}}
+];
+function cineWait(ms){
+  return new Promise(res=>{
+    let done=false;
+    const fin=()=>{if(done)return;done=true;clearTimeout(t);removeEventListener('keydown',kd);removeEventListener('pointerdown',fin);res();};
+    const kd=e=>{if(e.key==='Enter'||e.key===' '||e.key==='Escape'){fin();}};
+    const t=setTimeout(fin,ms);
+    addEventListener('keydown',kd);addEventListener('pointerdown',fin);
+  });
+}
+const cineFrame=()=>new Promise(r=>requestAnimationFrame(r));
+function cineText(g,s,x,y,size,col,align){
+  g.font=size+'px "Press Start 2P",monospace';g.textAlign=align||'center';g.textBaseline='top';
+  g.fillStyle='#000';g.fillText(s,x+1,y+1);g.fillStyle=col;g.fillText(s,x,y);
+}
+const _pixTmp=document.createElement('canvas');
+function cinePix(g,img,x,y,w,h,block){
+  if(block<=1){g.drawImage(img,x,y,w,h);return;}
+  _pixTmp.width=Math.max(2,Math.round(w/block));_pixTmp.height=Math.max(2,Math.round(h/block));
+  const t=_pixTmp.getContext('2d');t.imageSmoothingEnabled=false;t.drawImage(img,0,0,_pixTmp.width,_pixTmp.height);
+  g.drawImage(_pixTmp,0,0,_pixTmp.width,_pixTmp.height,x,y,w,h);
+}
+async function cutscene(c,g){
+  let prevY=1999;
+  AU.music('time');
+  for(let i=0;i<CINE_SLIDES.length;i++){
+    const s=CINE_SLIDES[i],img=makePicture(s.pic);
+    const T0=performance.now(),IN=900,HOLD=2000,OUT=550;
+    let skip=false;const w=cineWait(IN+HOLD+OUT).then(()=>{skip=true;});
+    if(i>0)AU.sfx('page');
+    while(!skip){
+      const t=performance.now()-T0;
+      if(t>IN+HOLD+OUT)break;
+      g.fillStyle='#05060f';g.fillRect(0,0,256,192);
+      // pixel dissolve in / out
+      let block=1;
+      if(t<IN){const k=t/IN;block=[48,24,12,6,3,2,1][Math.min(6,Math.floor(k*7))];}
+      else if(t>IN+HOLD){const k=(t-IN-HOLD)/OUT;block=[2,3,6,12,24,48][Math.min(5,Math.floor(k*6))];}
+      cinePix(g,img,8,26,240,144,block);
+      // year counter rolls up from the previous slide
+      const k=Math.min(1,t/IN),e=1-Math.pow(1-k,3);
+      const yr=Math.round(prevY+(s.y-prevY)*e);
+      cineText(g,String(yr),128,5,16,'#ffd23f');
+      const capA=t<IN?Math.max(0,(t-IN*.5)/(IN*.5)):(t>IN+HOLD?1-(t-IN-HOLD)/OUT:1);
+      g.globalAlpha=Math.max(0,Math.min(1,capA));
+      cineText(g,s.cap,128,177,8,'#f4f8ff');
+      g.globalAlpha=1;
+      cineText(g,'Enter: skip',252,184,6,'#5b6478','right');
+      await cineFrame();
+    }
+    prevY=s.y;
+  }
+}
+function startFireworks(c,g){
+  // pre-rendered night sky with a museum silhouette
+  const bg=document.createElement('canvas');bg.width=256;bg.height=192;
+  const b=bg.getContext('2d');
+  ['#05061a','#080a24','#0c0f30','#10143a','#161a45','#1d2150'].forEach((col,i)=>{b.fillStyle=col;b.fillRect(0,i*26,256,26);});
+  b.fillStyle='#1d2150';b.fillRect(0,150,256,42);
+  const R=rng(2024);const stars=[];for(let i=0;i<60;i++)stars.push([(R()*256)|0,(R()*120)|0,R()*6]);
+  b.fillStyle='#0a0c22';
+  b.fillRect(0,168,256,24);
+  b.fillRect(60,140,136,28);b.fillRect(70,132,116,8);
+  b.beginPath();b.moveTo(70,132);b.lineTo(128,108);b.lineTo(186,132);b.closePath();b.fill();
+  b.fillStyle='#ffd23f';for(let i=0;i<8;i++){b.fillRect(74+i*14,146,5,9);}
+  b.fillStyle='#e8b33d';b.fillRect(124,112,8,3);b.fillRect(126,106,4,5);
+  const cols=['#ff5a6e','#ffd23f','#5ee1ff','#8dff6a','#ff9af0','#ffffff','#ff9a3c'];
+  const parts=[],rockets=[],conf=[];
+  let running=true,last=performance.now(),spawnT=0,t0=last;
+  const shapes={
+    ball(n){const a=[];for(let i=0;i<n;i++){const an=Math.random()*6.283,sp=14+Math.random()*34;a.push([Math.cos(an)*sp,Math.sin(an)*sp]);}return a;},
+    ring(n){const a=[];for(let i=0;i<n;i++){const an=i/n*6.283;a.push([Math.cos(an)*42,Math.sin(an)*42]);}return a;},
+    heart(n){const a=[];for(let i=0;i<n;i++){const t=i/n*6.283;a.push([16*Math.pow(Math.sin(t),3)*2.1,-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*2.1]);}return a;}
+  };
+  function launch(){
+    const x=30+Math.random()*196,ty=24+Math.random()*60;
+    rockets.push({x,y:150,ty,vy:-(95+Math.random()*30),col:cols[(Math.random()*cols.length)|0],shape:['ball','ball','ring','heart'][(Math.random()*4)|0]});
+    AU.sfx('launch');
+  }
+  function burst(r){
+    AU.sfx('boom');
+    const pts=shapes[r.shape](r.shape==='ball'?46:34),c2=cols[(Math.random()*cols.length)|0];
+    pts.forEach(([vx,vy])=>parts.push({x:r.x,y:r.y,vx,vy,life:0,max:1.3+Math.random()*.8,col:Math.random()<.7?r.col:c2,tr:[]}));
+  }
+  for(let i=0;i<70;i++)conf.push({x:Math.random()*256,y:-Math.random()*192,vy:14+Math.random()*16,sw:Math.random()*6,col:cols[(Math.random()*cols.length)|0]});
+  (async()=>{
+    for(let k=0;k<3;k++){launch();await new Promise(r=>setTimeout(r,320));}
+  })();
+  (function loop(now){
+    if(!running)return;
+    const dt=Math.min(.05,(now-last)/1000);last=now;const el=(now-t0)/1000;
+    spawnT-=dt;if(spawnT<=0){launch();if(Math.random()<.5)setTimeout(launch,160);spawnT=.45+Math.random()*.5;}
+    g.drawImage(bg,0,0);
+    stars.forEach(([x,y,p])=>{if(Math.sin(el*3+p)>-.2){g.fillStyle='#fff';g.fillRect(x,y,1,1);}});
+    for(let i=rockets.length-1;i>=0;i--){
+      const r=rockets[i];r.y+=r.vy*dt;r.vy*=.992;
+      g.fillStyle='#ffd23f';g.fillRect(r.x|0,r.y|0,2,2);g.fillStyle='#ff9a3c';g.fillRect(r.x|0,(r.y+3)|0,1,2);
+      if(r.y<=r.ty){burst(r);rockets.splice(i,1);}
+    }
+    for(let i=parts.length-1;i>=0;i--){
+      const p=parts[i];p.life+=dt;if(p.life>p.max){parts.splice(i,1);continue;}
+      p.tr.push([p.x,p.y]);if(p.tr.length>4)p.tr.shift();
+      p.vy+=34*dt;p.vx*=.985;p.vy*=.985;p.x+=p.vx*dt;p.y+=p.vy*dt;
+      const a=1-p.life/p.max;
+      g.globalAlpha=a*.45;g.fillStyle=p.col;p.tr.forEach(([x,y])=>g.fillRect(x|0,y|0,1,1));
+      g.globalAlpha=Math.min(1,a*1.4);g.fillRect(p.x|0,p.y|0,2,2);
+    }
+    g.globalAlpha=1;
+    conf.forEach(f=>{f.y+=f.vy*dt;if(f.y>192){f.y=-4;f.x=Math.random()*256;}g.fillStyle=f.col;g.fillRect((f.x+Math.sin(el*2+f.sw)*4)|0,f.y|0,2,2);});
+    const pulse=Math.sin(el*5)>0?'#ffd23f':'#fff2a8';
+    cineText(g,'CONGRATULATIONS!',128,22,12,pulse);
+    cineText(g,'YOU TRACED THE POP',128,40,8,'#f4f8ff');
+    requestAnimationFrame(loop);
+  })(last);
+  return {stop(){running=false;}};
+}
+async function celebrate(){
+  const c=document.getElementById('cine'),g=c.getContext('2d');g.imageSmoothingEnabled=false;
+  S.mode='busy';hudVisible(false);
+  c.hidden=false;
+  await cutscene(c,g);
+  const fw=startFireworks(c,g);
+  AU.music('present');AU.sfx('fanfare');
+  await cineWait(6500);
+  return {end(){fw.stop();c.hidden=true;}};
+}
 </script>
 </html>
