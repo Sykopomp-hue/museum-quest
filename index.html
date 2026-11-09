@@ -1628,5 +1628,35 @@ async function celebrate(){
   await cineWait(6500);
   return {end(){fw.stop();c.hidden=true;}};
 }
+
+/* ===================== DEV / TESTING MENU (press ` , or tap the location box 5 times) ===================== */
+function devCompleteAll(){
+  WINGS.forEach(w=>{w.ex.forEach((_,i)=>{S.seen[w.id+':'+i]=1;});S.chests[w.id]=1;S.visited[w.id]=1;});
+  S.gateOpen=true;S.gateAnnounced=true;
+  updateHud();saveGame();
+}
+async function devMenu(){
+  if(S.mode!=='world')return;
+  keys.held.length=0;AU.sfx('confirm');
+  for(;;){
+    const v=await pick('Dev menu',[
+      {label:'Complete everything'},
+      {label:'Complete + go to Dawn Hall'},
+      {label:'Play ending now'},
+      {label:'Open Golden Gate only'},
+      {label:'Close'}],{cls:'menu',keepMode:'busy'});
+    if(v<0||v===4)break;
+    if(v===0){devCompleteAll();toast('All exhibits, stamps and gate unlocked');}
+    if(v===1){devCompleteAll();S.mode='world';await warpTo('dawn',7,10,'u');return;}
+    if(v===2){devCompleteAll();S.mode='world';await warpTo('dawn',7,10,'u');S.ended=true;await ending();return;}
+    if(v===3){S.gateOpen=true;S.gateAnnounced=true;updateHud();saveGame();toast('Golden Gate open');}
+  }
+  S.mode='world';hudVisible(true);
+}
+(function(){
+  window.addEventListener('keydown',e=>{if(e.key==='`'&&!e.repeat){e.preventDefault();devMenu();}});
+  let taps=0,tt=0;const el=document.getElementById('hudLoc');
+  if(el)el.addEventListener('pointerdown',()=>{const n=performance.now();taps=n-tt>3000?1:taps+1;tt=n;if(taps>=5){taps=0;devMenu();}});
+})();
 </script>
 </html>
