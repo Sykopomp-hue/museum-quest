@@ -1091,7 +1091,7 @@ function updateHud(){
   const hs=$('hudStamps');
   if(hs.children.length!==NW){hs.innerHTML='';for(let i=0;i<NW;i++){const s=document.createElement('span');s.className='stampDot';hs.appendChild(s);}}
   [...hs.children].forEach((c,i)=>c.classList.toggle('on',i<sc));
-  $('hudSeen').textContent=totalSeen()+'/'+TOTAL_EX;
+  $('hudSeen').textContent=totalSeen()+'/'+TOTAL_EX+' read · '+sc+'/'+NW+'★';hs.title='Stamps: '+sc+'/'+NW+' (open each wing\'s chest after reading its 5 exhibits)';
 }
 function hudVisible(v){$('hudLoc').hidden=!v;$('hudStats').hidden=!v;}
 let toastTimer=0;
@@ -1362,7 +1362,7 @@ async function viewExhibit(wid,i){
   if(first){
     S.seen[key]=1;updateHud();AU.sfx('stamp');
     const n=seenCount(wid);
-    if(n>=5){toast('Chest unlocked!');AU.sfx('unlock');}
+    if(n>=5){toast('All 5 read! Open the glowing chest in this room for your stamp.');AU.sfx('unlock');}
     else toast('Exhibit logged '+n+'/5');
     saveGame();
   }
@@ -1395,7 +1395,7 @@ async function talkAttendant(){
     const v=await choose('Attendant','Welcome to the lobby. How can I help?',[{label:'How do I play?'},{label:'How am I doing?'},{label:'Hint'},{label:'Bye'}]);
     if(v<0||v===3){await say('Attendant','Enjoy the museum!');return;}
     if(v===0)await say('Attendant',["Move with the arrow keys or WASD. Press Enter, Space or E to talk and read.","Esc opens your menu: journal, stamp card, sound and save. Press M to mute the music."]);
-    if(v===1)await say('Attendant',`You've read ${totalSeen()} of ${TOTAL_EX} exhibits and collected ${stampCount()} of 7 stamps.`+(S.gateOpen?' The Golden Gate is open!':''));
+    if(v===1)await say('Attendant',`You've read ${totalSeen()} of ${TOTAL_EX} exhibits and collected ${stampCount()} of ${NW} stamps.`+(S.gateOpen?' The Golden Gate is open!':''));
     if(v===2){const w=nextWing();await say('Attendant',w?`Try the ${w.name} wing. Its chest is still locked. Read ${5-seenCount(w.id)} more exhibit${5-seenCount(w.id)===1?'':'s'} there.`:'You have every stamp! Go through the Golden Gate at the top of the lobby.');}
   }
 }
@@ -1779,6 +1779,7 @@ function drawAmbient(m,t){
   vg.globalAlpha=1;
   // glowing exhibits: unseen ones pulse to invite you over
   m.objs.forEach(o=>{
+    if(o.k==='chest'&&o.wing&&!S.chests[o.wing]&&seenCount(o.wing)>=5){const cx=o.x*16-CAMX,cy=o.y*16-CAMY,p=.35+.35*Math.sin(t*5);vg.fillStyle=`rgba(255,210,63,${p})`;vg.fillRect(cx-2,cy-2,20,1);vg.fillRect(cx-2,cy+17,20,1);vg.fillRect(cx-2,cy-2,1,20);vg.fillRect(cx+17,cy-2,1,20);if(Math.sin(t*4)>.2){vg.fillStyle='#fff';vg.fillRect(cx+((t*23)%14|0),cy-4-((t*9)%6|0),1,1);}return;}
     if(o.k!=='exhibit')return;
     const x=o.x*16-CAMX,y=o.y*16-CAMY,w=(o.w||1)*16,h=(o.h||1)*16;
     if(x<-20||x>270||y<-20||y>210)return;
